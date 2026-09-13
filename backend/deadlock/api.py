@@ -93,6 +93,11 @@ def create_app(settings=None):
                 del errors[:-20]
             await asyncio.sleep(1)
 
+    async def container_loop():
+        while True:
+            await asyncio.to_thread(agents.monitor.sample_containers)
+            await asyncio.sleep(5)
+
     async def session_loop():
         while True:
             with suppress(Exception):
@@ -104,6 +109,7 @@ def create_app(settings=None):
         spawn(runner_loop())
         spawn(process_loop())
         spawn(session_loop())
+        spawn(container_loop())
         yield
         for task in list(tasks):
             task.cancel()
@@ -161,11 +167,15 @@ def create_app(settings=None):
     def state():
         with runner.lock:
             run = runner.state()
+        with agents.lock:
+            observations = [{k: v for k, v in a.items() if k != "logs"} for a in agents.list()]
+            host = agents.host
         return {
             "time": time.time(),
-            "agents": [{k: v for k, v in a.items() if k != "logs"} for a in agents.list()],
-            "host": agents.host,
+            "agents": observations,
+            "host": host,
             "governor": governor.state(),
+            "containers": agents.monitor.containers,
             "run": run,
             "telemetry": analytics.status(),
             "errors": errors,

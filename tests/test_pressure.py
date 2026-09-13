@@ -85,7 +85,8 @@ async def test_watchdog_resumes_on_deadline_and_controller_pipe_loss():
                     break
                 await asyncio.sleep(0.02)
             assert proc.status() != psutil.STATUS_STOPPED
-            lease.process.wait(timeout=2)
+            if eof:
+                lease.process.wait(timeout=2)
         finally:
             lease.disarm()
             proc.resume()
@@ -103,7 +104,7 @@ def fake_manager(tmp_path, agents):
         events=[],
         released=[],
     )
-    manager.event = lambda *args: manager.events.append(args)
+    manager.event = lambda *args, **kwargs: manager.events.append(args)
     manager.release_auto = lambda agent_id: manager.released.append(agent_id)
     return manager
 
@@ -247,3 +248,159 @@ async def test_real_governor_pause_and_disable_resume(runner):
         psutil.Process(child.pid).resume()
         child.terminate()
         child.wait(timeout=2)
+
+
+def test_rediscovery_does_not_duplicate_saved_adopted_identity(runner):
+    manager = AgentManager(runner.settings)
+    manager.records["one"] = {"id": "one", "state": "INTERRUPTED"}
+    manager.observed = [{"id": "one", "state": "RUNNING"}]
+    assert manager.list() == [{"id": "one", "state": "RUNNING"}]
+
+
+async def test_existing_manual_child_pause_is_not_resumed_by_automatic_control(runner, tmp_path):
+    pidfile = tmp_path / "manual-child"
+    code = f"import subprocess,sys,time,pathlib;p=subprocess.Popen([sys.executable,'-c','import time;time.sleep(30)']);pathlib.Path({str(pidfile)!r}).write_text(str(p.pid));time.sleep(30)"
+    parent = subprocess.Popen([sys.executable, "-c", code], start_new_session=True)
+    child = None
+    manager = AgentManager(runner.settings)
+    try:
+        for _ in range(100):
+            if pidfile.exists():
+                break
+            await asyncio.sleep(0.01)
+        child = psutil.Process(int(pidfile.read_text()))
+        child.suspend()
+        manager.records["tree"] = {
+            "id": "tree",
+            "name": "Control fixture",
+            "pid": parent.pid,
+            "created": psutil.Process(parent.pid).create_time(),
+            "source": "adopted process",
+            "state": "RUNNING",
+            "controls": ["pause", "stop"],
+        }
+        await manager.control("tree", "pause", automatic=True)
+        assert child.pid not in [p.pid for p in manager.paused["tree"]]
+        manager.release_auto("tree")
+        assert psutil.Process(parent.pid).status() != psutil.STATUS_STOPPED
+        assert child.status() == psutil.STATUS_STOPPED
+    finally:
+        manager.release_auto("tree")
+        if child:
+            child.resume()
+            child.kill()
+        parent.kill()
+        parent.wait(timeout=2)
+
+
+async def test_watchdog_never_resumes_a_reused_pid_identity():
+    child = subprocess.Popen([sys.executable, "-c", "import time;time.sleep(30)"], start_new_session=True)
+    proc = psutil.Process(child.pid)
+    lease = PauseLease(0.2)
+    try:
+        lease.send({"members": [[proc.pid, proc.create_time() - 1]]})
+        proc.suspend()
+        await asyncio.sleep(0.4)
+        assert proc.status() == psutil.STATUS_STOPPED
+    finally:
+        lease.disarm()
+        proc.resume()
+        child.terminate()
+        child.wait(timeout=2)
+
+
+def test_governor_api_is_local_and_explicit(runner):
+    from fastapi.testclient import TestClient
+    from deadlock.api import create_app
+
+    app = create_app(runner.settings)
+    client = TestClient(app)
+    assert client.post("/api/governor", json={"enabled": False}).status_code == 403
+    assert (
+        client.post("/api/governor", headers={"X-Deadlock-Control": "1"}, json={"enabled": False}).json()[
+            "enabled"
+        ]
+        is False
+    )
+    assert client.get("/api/state").json()["governor"]["enabled"] is False
+    assert client.get("/api/metrics?seconds=9999").json()["retention_seconds"] == 600
+    assert (
+        client.post(
+            "/api/agents/missing/automation", headers={"X-Deadlock-Control": "1"}, json={"enabled": False}
+        ).status_code
+        == 409
+    )
+    app.state.runner.analytics.db.close()
+
+
+def test_container_stats_keep_scope_units_and_fail_closed(monkeypatch):
+    from deadlock import monitor as module
+
+    monkeypatch.setattr(module.shutil, "which", lambda name: "/bin/docker")
+    row = {
+        "ID": "fixture",
+        "Name": "Disposable fixture",
+        "CPUPerc": "123.40%",
+        "MemUsage": "20MiB / 1GiB",
+        "BlockIO": "2MB / 3MB",
+        "NetIO": "4MB / 5MB",
+    }
+    import json
+
+    def output(args, **kwargs):
+        assert args[1:3] == ["stats", "--no-stream"]
+        assert kwargs["timeout"] == 8
+        return SimpleNamespace(stdout=json.dumps(row))
+
+    monkeypatch.setattr(module.subprocess, "run", output)
+    monitor = Monitor()
+    monitor.sample_containers()
+    assert monitor.containers["items"][0]["cpu"] == "123.40%"
+    assert monitor.containers["items"][0]["memory"] == "20MiB / 1GiB"
+    monkeypatch.setattr(module.subprocess, "run", lambda *a, **kw: SimpleNamespace(stdout="invalid"))
+    monitor.sample_containers()
+    assert monitor.containers["available"] is False
+    assert monitor.containers["items"][0]["id"] == "fixture"
+
+
+async def test_memory_growth_can_trigger_control_but_manual_override_excludes_it(tmp_path):
+    now = time.time()
+    agent = {
+        "id": "growing",
+        "name": "Growing fixture",
+        "pid": 2,
+        "state": "RUNNING",
+        "controls": ["pause"],
+        "cpu_capacity": 0,
+        "memory": 1024**3,
+    }
+    manager = fake_manager(tmp_path, [agent])
+    manager.monitor.history = [{"time": now - 6, "agents": {"growing": {"memory": 512 * 1024**2}}}]
+    calls = []
+
+    async def pause(agent_id, *args, **kwargs):
+        calls.append(agent_id)
+        manager.auto_leases[agent_id] = SimpleNamespace(process=SimpleNamespace(poll=lambda: None))
+
+    manager.control = pause
+    governor = Governor(manager)
+    manager.host = host_at(now, cpu=20, pressure={"level": "critical"})
+    await governor.tick(now)
+    agent["manual_until"] = now + 60
+    manager.host = host_at(now + 9, cpu=20, pressure={"level": "critical"})
+    await governor.tick(now + 9)
+    assert not calls
+    agent["manual_until"] = 0
+    manager.host = host_at(now + 10, cpu=20, pressure={"level": "critical"})
+    await governor.tick(now + 10)
+    assert calls == ["growing"]
+    assert governor.paused["reason"].startswith("Memory pressure")
+
+
+def test_agent_activity_survives_restart_and_skips_corrupt_line(runner):
+    manager = AgentManager(runner.settings)
+    manager.event("governor.resumed", "Released automatic pause")
+    with (runner.settings.data_dir / "agent-events.jsonl").open("a") as stream:
+        stream.write("broken line\n")
+    restored = AgentManager(runner.settings)
+    assert restored.events[-1]["type"] == "governor.resumed"

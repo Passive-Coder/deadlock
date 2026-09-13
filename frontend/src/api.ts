@@ -22,12 +22,18 @@ export async function api<T>(path: string, body?: unknown): Promise<T> {
     );
   return data;
 }
-export const bytes = (value: number | null | undefined) =>
-  value == null
-    ? "—"
-    : value >= 1024 ** 3
-      ? (value / 1024 ** 3).toFixed(1) + " GB"
-      : (value / 1024 ** 2).toFixed(0) + " MB";
+export const bytes = (value: number | null | undefined) => {
+  if (value == null || !Number.isFinite(value)) return "—";
+  if (value === 0) return "0 B";
+  const units = ["B", "KiB", "MiB", "GiB", "TiB"];
+  const index = Math.min(
+    4,
+    Math.max(0, Math.floor(Math.log(Math.max(1, value)) / Math.log(1024))),
+  );
+  return (
+    (value / 1024 ** index).toFixed(index === 0 ? 0 : 1) + " " + units[index]
+  );
+};
 export const clock = (seconds: number) =>
   new Date(seconds * 1000).toLocaleTimeString([], {
     hour: "2-digit",

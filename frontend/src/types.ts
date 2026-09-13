@@ -17,6 +17,13 @@ export type Agent = {
   cpu: number | null;
   memory: number | null;
   children?: number;
+  cpu_capacity?: number | null;
+  read_rate?: number | null;
+  write_rate?: number | null;
+  threads?: number;
+  sampled_at?: number;
+  metrics_partial?: boolean;
+  pause_owner?: "automatic" | "manual" | null;
   note?: string;
   controls: string[];
   protected: boolean;
@@ -26,7 +33,7 @@ export type Agent = {
   logs?: { time: number; text: string }[];
   log_truncated?: boolean;
   open_files?: { path: string; pid: number; kind: string }[];
-  process_tree?: { pid: number; name: string; status: string }[];
+  process_tree?: ProcessMetric[];
   inspection_error?: string;
 };
 export type Worker = {
@@ -117,13 +124,20 @@ export type State = {
   time: number;
   agents: Agent[];
   run: Run | null;
-  host: {
-    cpu: number;
-    memory_used: number;
-    memory_total: number;
-    logical_cpus: number;
-    platform: string;
-    updated: number;
+  host: Host;
+  governor: GovernorState;
+  containers: {
+    available: boolean;
+    updated: number | null;
+    error: string | null;
+    items: {
+      id: string;
+      name: string;
+      cpu: string;
+      memory: string;
+      block_io: string;
+      network_io: string;
+    }[];
   };
   telemetry: {
     engine: string;
@@ -141,4 +155,103 @@ export type State = {
   scenarios: Record<string, string>;
   events: Event[];
   errors: { component: string; error: string }[];
+};
+
+export type ProcessMetric = {
+  pid: number;
+  name: string;
+  status: string;
+  cpu: number | null;
+  memory: number;
+  threads: number;
+};
+export type Host = {
+  cpu: number | null;
+  cores: (number | null)[];
+  logical_cpus: number;
+  memory_used: number;
+  memory_total: number;
+  memory_available: number;
+  memory_percent: number;
+  swap_used: number;
+  swap_total: number;
+  platform: string;
+  hostname: string;
+  updated: number;
+  load: number[];
+  interval: number;
+  agent_cpu: number | null;
+  agent_memory: number;
+  unreadable_processes: number;
+  process_count: number;
+  io: Record<string, number | null>;
+  pressure: {
+    source: string | null;
+    level: string | null;
+    memory?: { full?: { avg10: number }; some?: { avg10: number } };
+  };
+  gpu: {
+    name: string;
+    utilization: number;
+    memory: number | null;
+    source: string;
+    updated: number;
+  } | null;
+  other_processes: ProcessMetric[];
+};
+export type GovernorState = {
+  enabled: boolean;
+  status: string;
+  reason: string;
+  exempt: string[];
+  cooldown_until: number;
+  overload_since: number | null;
+  policy: {
+    cpu_high: number;
+    cpu_low: number;
+    sustain_seconds: number;
+    recovery_seconds: number;
+    max_pause_seconds: number;
+    cooldown_seconds: number;
+    minimum_agent_cpu: number;
+  };
+  paused: {
+    agent_id: string;
+    name: string;
+    since: number;
+    resume_by: number;
+    reason: string;
+  } | null;
+};
+export type MetricFrame = {
+  time: number;
+  host: Pick<
+    Host,
+    | "cpu"
+    | "memory_used"
+    | "memory_total"
+    | "memory_available"
+    | "agent_cpu"
+    | "agent_memory"
+    | "pressure"
+    | "io"
+    | "gpu"
+  >;
+  agents: Record<
+    string,
+    Pick<
+      Agent,
+      | "cpu"
+      | "cpu_capacity"
+      | "memory"
+      | "read_rate"
+      | "write_rate"
+      | "children"
+      | "threads"
+    >
+  >;
+};
+export type MetricHistory = {
+  samples: MetricFrame[];
+  retention_seconds: number;
 };

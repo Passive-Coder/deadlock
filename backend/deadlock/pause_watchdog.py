@@ -13,6 +13,7 @@ import psutil
 
 class PauseLease:
     def __init__(self, seconds):
+        self.deadline = time.monotonic() + seconds
         self.process = subprocess.Popen(
             [sys.executable, str(Path(__file__).resolve())],
             stdin=subprocess.PIPE,
@@ -37,6 +38,8 @@ class PauseLease:
             raise RuntimeError("Automatic pause watchdog did not acknowledge the lease")
 
     def watch(self, members):
+        if time.monotonic() >= self.deadline:
+            raise RuntimeError("Automatic pause deadline expired during tree enumeration")
         self.send({"members": [[p.pid, p.create_time()] for p in members]})
 
     def disarm(self):
@@ -70,15 +73,8 @@ def main():
     deadline = time.monotonic() + min(60, max(0.1, float(initial["seconds"])))
     members = []
     print("ready", flush=True)
-    try:
-        while time.monotonic() < deadline and same_process(initial["owner"]):
-            if select.select([sys.stdin], [], [], 0.1)[0]:
-                line = sys.stdin.readline()
-                if not line:
-                    break
-                members.extend(json.loads(line).get("members", []))
-                print("ready", flush=True)
-    finally:
+
+    def resume_members():
         # Only identities registered before suspension; never a PID-only signal.
         for identity in reversed(members):
             proc = same_process(identity)
@@ -87,6 +83,27 @@ def main():
                     proc.resume()
                 except psutil.Error:
                     pass
+
+    try:
+        while time.monotonic() < deadline and same_process(initial["owner"]):
+            if select.select([sys.stdin], [], [], 0.1)[0]:
+                line = sys.stdin.readline()
+                if not line:
+                    return
+                members.extend(json.loads(line).get("members", []))
+                print("ready", flush=True)
+        # Stay alive after expiry until disarmed/owner exit. If the controller was
+        # descheduled between its last acknowledgement and SIGSTOP, release that
+        # late suspension too instead of leaving a stranded process.
+        while same_process(initial["owner"]):
+            resume_members()
+            if select.select([sys.stdin], [], [], 0.1)[0]:
+                line = sys.stdin.readline()
+                if not line:
+                    break
+                print("expired", flush=True)
+    finally:
+        resume_members()
 
 
 if __name__ == "__main__":

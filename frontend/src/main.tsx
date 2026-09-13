@@ -8,12 +8,9 @@ import {
   Box,
   Check,
   CheckCircle2,
-  ChevronDown,
   ChevronRight,
-  CircleHelp,
   Code2,
   Command,
-  Cpu,
   Database,
   FileText,
   Folder,
@@ -22,8 +19,6 @@ import {
   LayoutDashboard,
   Loader2,
   LockKeyhole,
-  Maximize2,
-  MemoryStick,
   Monitor,
   Network,
   Pause,
@@ -43,7 +38,18 @@ import {
 } from "lucide-react";
 import { api, bytes, clock, label, shortPath } from "./api";
 import type { Agent, Candidate, Event, Run, State } from "./types";
+import {
+  HardwareDashboard,
+  GovernorPanel,
+  AgentResources,
+  AgentPerformance,
+  AgentTrend,
+  useMetrics,
+  percent,
+} from "./monitor";
+import type { MetricHistory } from "./types";
 import "./styles.css";
+import "./monitor.css";
 
 type View =
   "overview" | "resources" | "lab" | "activity" | "history" | "connections";
@@ -129,6 +135,7 @@ function Spark({ values }: { values: number[] }) {
 }
 
 function App() {
+  const { history: metricsHistory, error: metricsError } = useMetrics();
   const [data, setData] = useState<State | null>(null),
     [connectionError, setConnectionError] = useState(""),
     [view, setView] = useState<View>("overview");
@@ -138,20 +145,14 @@ function App() {
     [busy, setBusy] = useState("");
   const [filter, setFilter] = useState("active"),
     [search, setSearch] = useState(""),
-    [samples, setSamples] = useState<number[]>([]),
-    [agentSamples, setAgentSamples] = useState<number[]>([]);
+    [samples, setSamples] = useState<number[]>([]);
   const refresh = useCallback(async () => {
     try {
       const state = await api<State>("/state");
       setData(state);
       setConnectionError("");
-      setSamples((a) => [...a.slice(-29), state.host.cpu || 0]);
-      setAgentSamples((a) => [
-        ...a.slice(-29),
-        state.agents
-          .filter((r) => r.pid && activeStates.includes(r.state))
-          .reduce((n, r) => n + (r.cpu || 0), 0),
-      ]);
+      if (state.host.cpu != null)
+        setSamples((a) => [...a.slice(-29), state.host.cpu!]);
     } catch (e) {
       setConnectionError((e as Error).message);
     }
@@ -216,23 +217,15 @@ function App() {
     }
   };
   const agents = data?.agents || [],
-    active = agents.filter((a) => activeStates.includes(a.state)),
-    actualProcesses = agents.filter(
-      (a) => a.pid && activeStates.includes(a.state),
-    );
-  const running = agents.filter((a) => a.state === "RUNNING").length,
-    paused = agents.filter((a) => a.state === "PAUSED").length;
-  const processCpu = actualProcesses.reduce((a, b) => a + (b.cpu || 0), 0),
-    processMem = actualProcesses.reduce((a, b) => a + (b.memory || 0), 0);
-  const incident = data?.run?.incident,
-    issueCount =
-      (incident && !["RESOLVED"].includes(incident.status) ? 1 : 0) +
-      (data?.telemetry.available === false ? 1 : 0);
+    active = agents.filter((a) => activeStates.includes(a.state));
   const titles: Record<View, [string, string]> = {
-    overview: ["Agent overview", "Your local coding agents, in one place."],
+    overview: [
+      "Live resource monitor",
+      "Real coding agents. Real device activity. Automatic pressure control.",
+    ],
     resources: [
-      "Resource map",
-      "See where agents work and which resources they hold.",
+      "Device resources",
+      "CPU, memory, GPU, disk, and network — measured on this machine.",
     ],
     lab: [
       "Recovery lab",
@@ -249,9 +242,8 @@ function App() {
     ],
   };
   const navs: { id: View; name: string; icon: typeof Activity }[] = [
-    { id: "overview", name: "Overview", icon: LayoutDashboard },
-    { id: "resources", name: "Resources", icon: Network },
-    { id: "lab", name: "Recovery lab", icon: GitBranch },
+    { id: "overview", name: "Live monitor", icon: LayoutDashboard },
+    { id: "resources", name: "Device resources", icon: Network },
     { id: "activity", name: "Activity", icon: Activity },
   ];
   const filtered = agents.filter(
@@ -294,12 +286,18 @@ function App() {
               {id === "overview" && active.length > 0 && (
                 <em>{active.length}</em>
               )}
-              {id === "lab" && issueCount > 0 && <span className="nav-alert" />}
             </button>
           ))}
         </nav>
         <div className="nav-caption secondary">SYSTEM</div>
         <nav>
+          <button
+            className={cx(view === "lab" && "selected")}
+            onClick={() => setView("lab")}
+          >
+            <GitBranch size={17} />
+            Recovery lab <small>Optional</small>
+          </button>
           <button
             className={cx(view === "history" && "selected")}
             onClick={() => setView("history")}
@@ -323,7 +321,7 @@ function App() {
               <span className="live-dot" />
             </div>
             <p>
-              Host CPU <strong>{data?.host.cpu?.toFixed(1) || "0.0"}%</strong>
+              Host CPU <strong>{percent(data?.host.cpu)}</strong>
             </p>
             <Spark values={samples} />
           </div>
@@ -392,72 +390,12 @@ function App() {
           ) : (
             <>
               {(view === "overview" || view === "resources") && (
-                <div className="metrics">
-                  <div>
-                    <span>
-                      <Radio size={14} />
-                      Active agents
-                    </span>
-                    <strong>
-                      {active.length}
-                      <small>
-                        {running} running{paused > 0 && ` · ${paused} paused`}
-                      </small>
-                    </strong>
-                    <span className="metric-foot">
-                      Processes + shared sessions
-                    </span>
-                  </div>
-                  <div>
-                    <span>
-                      <Cpu size={14} />
-                      Agent CPU
-                    </span>
-                    <strong>
-                      {processCpu.toFixed(1)}
-                      <i>%</i>
-                      <Spark values={agentSamples} />
-                    </strong>
-                    <span className="metric-foot">
-                      Process trees · 100% = one core
-                    </span>
-                  </div>
-                  <div>
-                    <span>
-                      <MemoryStick size={14} />
-                      Agent memory
-                    </span>
-                    <strong>
-                      {bytes(processMem)}
-                      <small>RSS</small>
-                    </strong>
-                    <span className="metric-foot">
-                      {actualProcesses.length} observed process{" "}
-                      {actualProcesses.length === 1 ? "tree" : "trees"}
-                    </span>
-                  </div>
-                  <div>
-                    <span>
-                      <GitBranch size={14} />
-                      Resource incidents
-                    </span>
-                    <strong>
-                      {incident && incident.status !== "RESOLVED" ? 1 : 0}
-                      <small
-                        className={
-                          incident?.status === "UNRESOLVED"
-                            ? "text-amber"
-                            : "text-lime"
-                        }
-                      >
-                        {incident ? label(incident.status) : "No active cycles"}
-                      </small>
-                    </strong>
-                    <span className="metric-foot">
-                      Instrumented resources only
-                    </span>
-                  </div>
-                </div>
+                <HardwareDashboard
+                  data={data}
+                  history={metricsHistory}
+                  historyError={metricsError}
+                  full={view === "resources"}
+                />
               )}
               {view === "overview" && (
                 <div className="overview-grid">
@@ -504,7 +442,9 @@ function App() {
                           <tr>
                             <th>AGENT / WORKSPACE</th>
                             <th>STATUS</th>
-                            <th>CPU</th>
+                            <th title="Percent of total host CPU capacity">
+                              CPU / TREND
+                            </th>
                             <th>MEMORY</th>
                             <th aria-label="Controls" />
                           </tr>
@@ -534,6 +474,9 @@ function App() {
                               </td>
                               <td>
                                 <Status value={a.state} />
+                                {a.pause_owner === "automatic" && (
+                                  <span className="auto-tag">Auto-paused</span>
+                                )}
                                 <span className="table-source">
                                   {a.source === "shared session"
                                     ? "Session"
@@ -543,14 +486,52 @@ function App() {
                                         ? "Adopted"
                                         : "Managed"}
                                   {a.pid && ` · ${a.pid}`}
+                                  {a.metrics_partial && " · Partial sample"}
                                 </span>
                               </td>
                               <td className="mono">
-                                {a.cpu == null ? "—" : a.cpu.toFixed(1) + "%"}
+                                {percent(a.cpu_capacity)}
+                                <AgentTrend
+                                  agent={a}
+                                  history={metricsHistory}
+                                />
                               </td>
                               <td className="mono">{bytes(a.memory)}</td>
                               <td>
                                 <div className="row-controls">
+                                  {!a.protected &&
+                                    activeStates.includes(a.state) &&
+                                    a.pid && (
+                                      <button
+                                        className={cx(
+                                          "auto-agent-toggle",
+                                          !data.governor.exempt.includes(
+                                            a.id,
+                                          ) && "enabled",
+                                        )}
+                                        role="switch"
+                                        aria-checked={
+                                          !data.governor.exempt.includes(a.id)
+                                        }
+                                        aria-label={`Automatic pressure control for ${a.name}`}
+                                        title="Allow automatic temporary pauses when this agent contributes to overload"
+                                        onClick={() =>
+                                          void execute(a.id, () =>
+                                            api(
+                                              `/agents/${encodeURIComponent(a.id)}/automation`,
+                                              {
+                                                enabled:
+                                                  data.governor.exempt.includes(
+                                                    a.id,
+                                                  ),
+                                              },
+                                            ),
+                                          )
+                                        }
+                                      >
+                                        Auto
+                                      </button>
+                                    )}
                                   {a.controls.includes("pause") && (
                                     <button
                                       className="icon-button"
@@ -667,129 +648,19 @@ function App() {
                         </button>
                       </div>
                       <EventList
-                        events={[...data.events, ...(data.run?.events || [])]
+                        events={[...data.events]
                           .sort((a, b) => b.time - a.time)
                           .slice(0, 4)}
                       />
                     </section>
                   </section>
                   <aside className="overview-aside">
-                    <div className="section-header">
-                      <h2>Resource watch</h2>
-                      <Network size={16} />
-                    </div>
-                    <div className="host-resource">
-                      <span className="resource-glyph">
-                        <Cpu size={20} />
-                      </span>
-                      <div>
-                        <strong>Compute</strong>
-                        <span>
-                          {data.host.logical_cpus || "—"} logical cores
-                        </span>
-                      </div>
-                      <span className="resource-value">
-                        {data.host.cpu?.toFixed(1) || "0"}%
-                      </span>
-                    </div>
-                    <div className="meter">
-                      <span
-                        style={{
-                          width: `${Math.min(data.host.cpu || 0, 100)}%`,
-                        }}
-                      />
-                    </div>
-                    <div className="host-resource memory">
-                      <span className="resource-glyph">
-                        <MemoryStick size={20} />
-                      </span>
-                      <div>
-                        <strong>System memory</strong>
-                        <span>
-                          {bytes(data.host.memory_total)} total capacity
-                        </span>
-                      </div>
-                      <span className="resource-value">
-                        {bytes(data.host.memory_used)}
-                      </span>
-                    </div>
-                    <div className="meter neutral">
-                      <span
-                        style={{
-                          width: `${(100 * (data.host.memory_used || 0)) / (data.host.memory_total || 1)}%`,
-                        }}
-                      />
-                    </div>
-                    <div className="resource-divider" />
-                    <div className="section-header">
-                      <h3>Working directories</h3>
-                      <span className="count">
-                        {new Set(active.map((a) => a.cwd).filter(Boolean)).size}
-                      </span>
-                    </div>
-                    {Array.from(
-                      new Set(active.map((a) => a.cwd).filter(Boolean)),
-                    )
-                      .slice(0, 5)
-                      .map((path) => (
-                        <div className="workspace-row" key={path}>
-                          <Folder size={15} />
-                          <div>
-                            <strong>{path.split("/").pop()}</strong>
-                            <span title={path}>{shortPath(path)}</span>
-                          </div>
-                          <span>
-                            {active.filter((a) => a.cwd === path).length}
-                          </span>
-                        </div>
-                      ))}
-                    {!active.length && (
-                      <p className="muted small-copy">
-                        Working directories appear when agents connect.
-                      </p>
-                    )}
-                    <button
-                      className="button wide quiet"
-                      onClick={() => setView("resources")}
-                    >
-                      Explore resources <ArrowUpRight size={14} />
-                    </button>
-                    <div className="lab-teaser">
-                      <span className="eyebrow">
-                        <GitBranch size={13} /> VERIFIED RECOVERY
-                      </span>
-                      <h3>
-                        When progress stops,
-                        <br />
-                        find the dependency.
-                      </h3>
-                      <p>
-                        Run a reproducible resource cycle and inspect every
-                        recovery step.
-                      </p>
-                      <button
-                        className="text-button lime"
-                        onClick={() => setView("lab")}
-                      >
-                        Open recovery lab <ArrowRight size={14} />
-                      </button>
-                    </div>
-                    <div className="observation-note">
-                      <CircleHelp size={15} />
-                      <p>
-                        Shared files and high CPU do not imply a deadlock. Only
-                        instrumented wait cycles qualify.
-                      </p>
-                    </div>
+                    <GovernorPanel data={data} execute={execute} busy={busy} />
                   </aside>
                 </div>
               )}
               {view === "resources" && (
-                <Resources
-                  data={data}
-                  inspect={inspect}
-                  openLab={() => setView("lab")}
-                />
+                <AgentResources data={data} inspect={inspect} />
               )}
               {view === "lab" && (
                 <Lab
@@ -846,6 +717,7 @@ function App() {
       </div>
       {selected && (
         <Inspector
+          history={metricsHistory}
           agent={selected}
           close={() => setSelected(null)}
           control={control}
@@ -940,98 +812,6 @@ function EventList({ events }: { events: Event[] }) {
       Listening for agent and runner events. Start an agent or a lab run to
       begin.
     </div>
-  );
-}
-
-function Resources({
-  data,
-  inspect,
-  openLab,
-}: {
-  data: State;
-  inspect: (a: Agent) => void;
-  openLab: () => void;
-}) {
-  const agents = data.agents.filter((a) => activeStates.includes(a.state)),
-    paths = Array.from(new Set(agents.map((a) => a.cwd).filter(Boolean)));
-  return (
-    <>
-      <div className="section-header">
-        <h2>Workspace occupancy</h2>
-        <span className="scope-label">
-          <span className="live-dot" />
-          Observed directories · ownership unknown
-        </span>
-      </div>
-      <div className="resource-layout">
-        <section className="directory-list">
-          {paths.length ? (
-            paths.map((path) => (
-              <div className="directory-group" key={path}>
-                <div className="directory-title">
-                  <Folder size={20} />
-                  <div>
-                    <h3>{path.split("/").pop() || path}</h3>
-                    <p>{shortPath(path)}</p>
-                  </div>
-                  <span className="count">
-                    {agents.filter((a) => a.cwd === path).length} agents
-                  </span>
-                </div>
-                {agents
-                  .filter((a) => a.cwd === path)
-                  .map((a) => (
-                    <button
-                      className="directory-agent"
-                      key={a.id}
-                      onClick={() => inspect(a)}
-                    >
-                      <span className="branch-line" />
-                      <Provider provider={a.provider} />
-                      <strong>{a.name}</strong>
-                      <Status value={a.state} />
-                      <ChevronRight size={14} />
-                    </button>
-                  ))}
-              </div>
-            ))
-          ) : (
-            <Empty icon={Network} title="No workspace activity">
-              Launch or discover a coding agent to see its working directory
-              here.
-            </Empty>
-          )}
-        </section>
-        <aside className="plain-inspector">
-          <h3>What is being measured</h3>
-          <dl>
-            <dt>CPU</dt>
-            <dd>
-              Current utilization of each visible process tree. Multi-core work
-              can exceed 100%.
-            </dd>
-            <dt>Memory</dt>
-            <dd>
-              Resident memory (RSS), summed across the process and its visible
-              children.
-            </dd>
-            <dt>Open files</dt>
-            <dd>
-              Select an agent to inspect open file handles. A file handle does
-              not establish lock ownership.
-            </dd>
-            <dt>Exclusive leases</dt>
-            <dd>
-              The recovery lab records authoritative ownership and blocking
-              requests for its logical resources.
-            </dd>
-          </dl>
-          <button className="button wide" onClick={openLab}>
-            Inspect exclusive leases <ArrowRight size={14} />
-          </button>
-        </aside>
-      </div>
-    </>
   );
 }
 
@@ -1168,7 +948,6 @@ function DependencyGraph({
 
 function Lab({
   data,
-  refresh,
   execute,
   busy,
 }: {
@@ -2199,11 +1978,13 @@ function ConfirmControl({
 }
 
 function Inspector({
+  history,
   agent,
   close,
   control,
   reload,
 }: {
+  history: MetricHistory;
   agent: Agent;
   close: () => void;
   control: (a: Agent, action: string) => void;
@@ -2307,14 +2088,21 @@ function Inspector({
         </div>
         {tab === "resources" ? (
           <div className="inspector-content">
-            <h3>Process tree</h3>
+            <AgentPerformance agent={agent} history={history} />
+            <h3>Attributed processes</h3>
+            <p className="small-copy muted">
+              CPU below uses 100% per core. Each process is counted once across
+              agents.
+            </p>
             {agent.process_tree?.length ? (
               agent.process_tree.map((p) => (
                 <div className="process-row" key={p.pid}>
                   <Terminal size={13} />
                   <strong>{p.name}</strong>
                   <code>{p.pid}</code>
-                  <span>{p.status}</span>
+                  <span>
+                    {percent(p.cpu)} · {bytes(p.memory)}
+                  </span>
                 </div>
               ))
             ) : (

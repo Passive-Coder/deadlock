@@ -1,6 +1,6 @@
 # DEADLOCK
 
-A local dashboard for actual Codex and Claude coding agents, with an instrumented lab for resource deadlock detection and verified recovery.
+A live resource monitor and control dashboard for actual Codex and Claude coding agents. It measures local device pressure and automatically pauses/resumes eligible agents to throttle overload.
 
 ## Run locally
 
@@ -18,12 +18,29 @@ For separate frontend development, run the backend and `npm --prefix frontend ru
 
 ## Agent dashboard
 
-The Agents view discovers same-user Codex/Claude CLI processes. It reports process-tree CPU, resident memory, workspace, children, and accessible open files. Select an agent for its inspector. CPU can exceed 100% when multiple cores are busy; the first sample is a warm-up. RSS sums may include shared pages, so totals are observations rather than exclusive physical-memory accounting.
+The default **Live monitor** discovers same-user Codex/Claude processes and displays real OS observations. **Device resources** adds GPU, disk, network, and swap history plus per-agent resource attribution and the busiest other processes and Docker containers. Docker readings use the configured context and remain separate from local agent attribution. Select an agent for its CPU/RAM graphs, individual attributed processes, and open file handles.
+
+Graphs show up to ten minutes of backend-collected history, with 2/5/10-minute windows and pointer/keyboard inspection. They survive browser refreshes and reset when the backend restarts. Missing measurements appear as gaps. CPU in the dashboard uses total logical host capacity; the inspector's individual process rows use 100% per core. Process identity includes PID and creation time. A process is assigned to its nearest agent root exactly once; DEADLOCK's own subtree is excluded from ancestor attribution.
+
+Memory uses OS available headroom and observed process RSS. RSS includes shared mappings, excludes compressed pages, and is not exclusive physical-memory accounting. Apple Silicon GPU utilization comes from the GPU driver's IORegistry statistics. macOS kernel memory pressure is shown as normal/warning/critical; Linux exposes PSI stall averages. Unsupported GPU and per-process disk metrics are labeled unavailable. Network and GPU usage are host-wide; remote model inference is not measured here.
+
+### Automatic pressure control
+
+Automatic control is **enabled by default** and can be disabled globally or excluded per agent. Preferences persist locally. Existing standalone coding agents are automatically adopted when selected for throttling. Shared runtime infrastructure, DEADLOCK and its ancestors, manually paused agents, exempt agents, and recently manually controlled agents are protected.
+
+- CPU ≥90% for eight seconds: pause one eligible agent contributing at least 3% of total host CPU capacity.
+- Critical memory pressure, less than 8% available RAM, or Linux full-memory stalls ≥10% over ten seconds: only consider an agent whose measured RSS grew at least 1 MiB/s over a baseline of at least five seconds.
+- Resume after CPU ≤70%, available RAM ≥12%, and recovered kernel pressure persist for five seconds; otherwise an independent watchdog releases the pause at its 20-second lease deadline.
+- Wait 30 seconds before another pause, and require sustained pressure again. Only one automatic pause is active at a time. Stale samples cause release, never a new pause. Manual controls take priority and give the agent 60 seconds without automatic intervention.
+
+The watchdog tracks exact process identities and resumes surviving descendants if the backend dies. It registers processes before signals and preserves descendants that were already manually suspended. Disabling automatic control immediately releases its pause. Events record the measurements and reason behind each automatic action.
+
+**Suspension reduces execution and can slow new allocation; it retains RAM and locks. This is overload mitigation, not a guarantee against OOM, UI freezes, or external lock deadlocks.** The optional recovery lab remains separate and never supplies hardware measurements. See [measurement and policy details](docs/LIVE-MONITOR.md).
 
 | Agent connection | Supported behavior |
 | --- | --- |
 | Launched from DEADLOCK | Real CLI execution; streamed output; pause, resume, stop; continue a reported conversation ID after exit |
-| Existing standalone CLI | Discover, inspect, explicitly adopt, then pause/resume/stop; its original terminal retains the output stream |
+| Existing standalone CLI | Discover, inspect, adopt manually or through automatic pressure control, then pause/resume/stop; its original terminal retains the output stream |
 | Codex shared daemon | List/read sessions, continue a turn, interrupt an active turn through the documented app-server proxy, when an attachable daemon is available |
 | Shared desktop runtime or parent process | Observe only; stopping a shared runtime could affect multiple tasks |
 
@@ -33,7 +50,7 @@ New launches default to read-only access. Workspace-write uses the provider's co
 
 The installed desktop Codex runtime on the validation machine exposes only private stdio servers, so per-task shared-daemon control is unavailable there. Standalone Codex launch, pause, resume, stop, completion, and conversation reporting were tested against the actual CLI. Claude launch/error reporting was tested, but this machine has no Claude login, so a successful Claude model turn remains unverified. See [agent validation](docs/agent-validation.json).
 
-## Recovery lab
+## Optional recovery lab
 
 Choose a scenario, seed, and strategy, then start a run. The graph, worker checkpoints, incident details, SQL evidence, tool trace, validators, and downloadable outputs all come from backend state.
 
@@ -73,7 +90,9 @@ PYTHONPATH=backend uv run python scripts/evaluate.py --live --trials 5
 
 See [evaluation results](docs/EVALUATION.md), [product requirements](docs/PRD.md), [research and architecture](docs/ARCHITECTURE.md), and [demo run guide](docs/DEMO.md). Measured results include failures and missed latency targets. A green local suite does not imply compatibility with every CLI version, operating system, or database release.
 
-## Submission artifacts
+## Earlier recovery-lab submission artifacts
+
+These artifacts describe the optional instrumented lab; the live OS monitor and governor are documented separately above.
 
 - [Pitch deck](docs/DEADLOCK-pitch.pptx): six editable slides.
 - [Recorded evidence walkthrough](docs/DEADLOCK-demo.mp4): 104.3 seconds, reconstructed from measured backend states and explicitly labeled.

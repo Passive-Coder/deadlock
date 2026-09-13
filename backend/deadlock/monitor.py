@@ -2,6 +2,8 @@
 
 from collections import deque
 import ctypes
+import json
+import shutil
 import os
 from pathlib import Path
 import plistlib
@@ -71,6 +73,7 @@ class Monitor:
     def __init__(self):
         self.previous = {}
         self.last_time = None
+        self.last_wall = None
         self.last_cpu = None
         self.last_cores = []
         self.last_io = {}
@@ -80,6 +83,41 @@ class Monitor:
         self.host = {}
         self.gpu = None
         self.gpu_sampled = 0
+        self.containers = {"available": False, "updated": None, "error": None, "items": []}
+
+    def sample_containers(self):
+        executable = shutil.which("docker")
+        if not executable:
+            return
+        try:
+            output = subprocess.run(
+                [executable, "stats", "--no-stream", "--format", "{{json .}}"],
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=8,
+            )
+            items = []
+            for line in output.stdout.splitlines():
+                row = json.loads(line)
+                items.append(
+                    {
+                        "id": row["ID"],
+                        "name": row["Name"],
+                        "cpu": row["CPUPerc"],
+                        "memory": row["MemUsage"],
+                        "block_io": row["BlockIO"],
+                        "network_io": row["NetIO"],
+                    }
+                )
+            items.sort(key=lambda item: float(item["cpu"].rstrip("%")), reverse=True)
+            self.containers = {"available": True, "updated": time.time(), "error": None, "items": items}
+        except (OSError, ValueError, KeyError, subprocess.SubprocessError):
+            self.containers = {
+                **self.containers,
+                "available": False,
+                "error": "Docker statistics could not be refreshed; showing the last observation if available",
+            }
 
     def sample_gpu(self, now):
         if os.uname().sysname != "Darwin" or now - self.gpu_sampled < 3:
@@ -125,6 +163,8 @@ class Monitor:
                     memory = proc.memory_info().rss
                     before = self.previous.get(key, {})
                     cpu = rate(cpu_time, before.get("cpu_time"), elapsed)
+                    if not before and self.last_wall is not None and key[1] >= self.last_wall and elapsed > 0:
+                        cpu = cpu_time / elapsed
                     try:
                         io = proc.io_counters()
                         read, write = io.read_bytes, io.write_bytes
@@ -228,9 +268,26 @@ class Monitor:
             )[:8],
         }
         self.processes, self.attributed = processes, groups
-        self.previous, self.last_time = previous, now
+        self.previous, self.last_time, self.last_wall = previous, now, wall
         self.last_cpu, self.last_cores = cpu_times, core_times
-        self.history.append({"time": wall, "host": self.host, "agents": metrics})
+        chart_fields = {
+            "cpu",
+            "memory_used",
+            "memory_total",
+            "memory_available",
+            "agent_cpu",
+            "agent_memory",
+            "pressure",
+            "io",
+            "gpu",
+        }
+        self.history.append(
+            {
+                "time": wall,
+                "host": {k: v for k, v in self.host.items() if k in chart_fields},
+                "agents": metrics,
+            }
+        )
         return metrics, self.host
 
     def series(self, seconds=300):

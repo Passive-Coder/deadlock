@@ -74,6 +74,11 @@ class Governor:
             if self.paused and self.paused["agent_id"] == agent_id:
                 self.release("Agent excluded from automatic control")
         self.save()
+        self.manager.event(
+            "governor.agent_configured",
+            "Automatic control " + ("enabled" if enabled else "excluded") + " for this agent",
+            agent_id,
+        )
 
     def release(self, reason):
         if not self.paused:
@@ -193,8 +198,16 @@ class Governor:
             self.low_since = None
             self.manager.event(
                 "governor.paused",
-                f"{agent['name']}: {reason}; automatic resume within {duration}s",
+                f"{agent['name']}: {reason}; host CPU {host['cpu']:.1f}%; resume within {duration}s",
                 agent["id"],
+                evidence={
+                    "host_cpu": host["cpu"],
+                    "agent_cpu_capacity": agent.get("cpu_capacity"),
+                    "memory_available": host["memory_available"],
+                    "memory_pressure": pressure,
+                    "sampled_at": host["updated"],
+                    "resume_by": self.paused["resume_by"],
+                },
             )
         except (Rejection, OSError, RuntimeError) as exc:
             self.status, self.reason = "limited", "Automatic pause rejected: " + str(exc)[:160]

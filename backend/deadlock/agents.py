@@ -226,6 +226,23 @@ class AgentManager:
         self.monitor = Monitor()
         self.auto_leases = {}
         self.events = deque(maxlen=300)
+        event_path = settings.data_dir / "agent-events.jsonl"
+        if event_path.exists():
+            try:
+                with event_path.open("rb") as stream:
+                    offset = max(0, event_path.stat().st_size - 256 * 1024)
+                    stream.seek(offset)
+                    if offset:
+                        stream.readline()
+                    for line in deque(stream, maxlen=300):
+                        try:
+                            event = json.loads(line)
+                            if {"time", "type", "message"} <= event.keys():
+                                self.events.append(event)
+                        except (ValueError, AttributeError):
+                            pass
+            except OSError:
+                pass
         self.bridge = CodexBridge()
         self.host = {}
         self.available = {name: shutil.which(name) is not None for name in ("codex", "claude")}
@@ -251,8 +268,8 @@ class AgentManager:
         temp.write_text(json.dumps(list(self.records.values())))
         temp.replace(self.state_path)
 
-    def event(self, kind, message, agent_id=None):
-        event = {"time": time.time(), "type": kind, "message": message, "agent_id": agent_id}
+    def event(self, kind, message, agent_id=None, **details):
+        event = {"time": time.time(), "type": kind, "message": message, "agent_id": agent_id, **details}
         self.events.append(event)
         with (self.settings.data_dir / "agent-events.jsonl").open("a") as stream:
             stream.write(json.dumps(event) + "\n")
@@ -591,15 +608,28 @@ class AgentManager:
                     lease.watch([proc])
                 proc.suspend()
                 paused.append(proc)
-                children = [p for p in proc.children(recursive=True) if p.status() != psutil.STATUS_STOPPED]
-                if lease:
-                    lease.watch(children)
-                for child in children:
+                pending = deque([proc])
+                seen = {proc.pid}
+                while pending:
+                    parent = pending.popleft()
                     try:
-                        child.suspend()
-                        paused.append(child)
+                        children = parent.children()
                     except psutil.NoSuchProcess:
-                        pass
+                        continue
+                    for child in children:
+                        if child.pid in seen:
+                            continue
+                        seen.add(child.pid)
+                        try:
+                            if child.status() != psutil.STATUS_STOPPED:
+                                if lease:
+                                    lease.watch([child])
+                                child.suspend()
+                                paused.append(child)
+                            # Enumerate descendants only after their parent is frozen.
+                            pending.append(child)
+                        except psutil.NoSuchProcess:
+                            pass
             except (psutil.Error, Rejection, RuntimeError, OSError):
                 for item in reversed(paused):
                     try:
@@ -765,11 +795,13 @@ class AgentManager:
             for r in self.records.values()
             if r["state"] in {"RUNNING", "PAUSED", "STARTING", "STOPPING"}
         }
-        return [
+        entries = [
             *self.records.values(),
             *self.observed,
             *[s for s in self.bridge.sessions if s["session_id"] not in owned_session_ids],
         ]
+        # Rediscovered adopted identities supersede saved INTERRUPTED observations.
+        return list({entry["id"]: entry for entry in entries}.values())
 
     async def close(self):
         for agent_id in list(self.auto_leases):
