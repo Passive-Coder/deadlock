@@ -109,3 +109,47 @@ async def test_launch_stream_lifecycle_with_cli_fixture(runner, tmp_path, monkey
     assert result["session_id"] == "session-fixture"
     assert "$(no execution)" in result["logs"][-1]["text"]
     assert result["exit_code"] == 0
+
+
+async def test_stop_terminates_descendants_and_bounds_unresponsive_child(runner, tmp_path):
+    child_pid_file = tmp_path / "descendant.pid"
+    child_code = "import signal,time;signal.signal(signal.SIGTERM,signal.SIG_IGN);time.sleep(30)"
+    parent_code = (
+        "import subprocess,sys,pathlib,time\n"
+        f'child=subprocess.Popen([sys.executable,"-c",{child_code!r}])\n'
+        f"pathlib.Path({str(child_pid_file)!r}).write_text(str(child.pid))\n"
+        "time.sleep(30)"
+    )
+    parent = subprocess.Popen([sys.executable, "-c", parent_code], start_new_session=True)
+    manager = AgentManager(runner.settings)
+    child = None
+    try:
+        for _ in range(100):
+            if child_pid_file.exists():
+                break
+            await asyncio.sleep(0.01)
+        child = psutil.Process(int(child_pid_file.read_text()))
+        await asyncio.sleep(0.05)
+        manager.records["tree"] = {
+            "id": "tree",
+            "name": "Disposable tree",
+            "pid": parent.pid,
+            "created": psutil.Process(parent.pid).create_time(),
+            "state": "RUNNING",
+            "source": "adopted process",
+            "controls": ["stop"],
+        }
+        await manager.control("tree", "stop")
+        await asyncio.wait_for(asyncio.gather(*manager.tasks), timeout=5)
+        parent.wait(timeout=2)
+        assert not child.is_running() or child.status() == psutil.STATUS_ZOMBIE
+        assert any(e["type"] == "agent.stop_escalated" for e in manager.events)
+    finally:
+        if parent.poll() is None:
+            parent.kill()
+            parent.wait()
+        if child and child.is_running():
+            try:
+                child.kill()
+            except psutil.NoSuchProcess:
+                pass

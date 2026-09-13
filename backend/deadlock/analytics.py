@@ -11,6 +11,10 @@ from uuid import uuid4
 SQL_DIR = Path(__file__).resolve().parents[2] / "sql"
 
 
+class TelemetryError(RuntimeError):
+    """Public error without driver connection details."""
+
+
 class Analytics:
     def __init__(self, settings):
         self.kind = settings.database
@@ -75,16 +79,26 @@ class Analytics:
         return self.db.execute(sql, params or {})
 
     def insert(self, table, columns, values):
-        params = {f"v{i}": v for i, v in enumerate(values)}
-        placeholders = ",".join("{" + k + "}" for k in params)
-        self.execute(f"INSERT INTO {table} ({','.join(columns)}) VALUES ({placeholders})", params)
+        return self.insert_rows(table, columns, [values])
+
+    def insert_rows(self, table, columns, rows):
+        if not rows:
+            return
+        params, tuples = {}, []
+        for row_index, values in enumerate(rows):
+            keys = [f"r{row_index}v{i}" for i in range(len(values))]
+            params.update(zip(keys, values))
+            tuples.append("(" + ",".join("{" + k + "}" for k in keys) + ")")
+        self.execute(f"INSERT INTO {table} ({','.join(columns)}) VALUES {','.join(tuples)}", params)
 
     def snapshot(self, snap):
         if not self.available:
             return False
         sid, rid = snap["id"], snap["run_id"]
         try:
-            existing = self.execute("SELECT complete FROM snapshots WHERE id={sid} AND run_id={rid}", {"sid": sid, "rid": rid}).fetchall()
+            existing = self.execute(
+                "SELECT complete FROM snapshots WHERE id={sid} AND run_id={rid}", {"sid": sid, "rid": rid}
+            ).fetchall()
             if existing:
                 if len(existing) == 1 and int(dict(existing[0])["complete"]) == 1:
                     self.last_success = time.time()
@@ -93,21 +107,9 @@ class Analytics:
             self.insert(
                 "snapshots", ["id", "run_id", "captured", "complete"], [sid, rid, snap["captured"], 0]
             )
+            worker_rows, waits, capabilities = [], [], []
             for w in snap["workers"]:
-                self.insert(
-                    "workers",
-                    [
-                        "snapshot_id",
-                        "run_id",
-                        "id",
-                        "attempt",
-                        "state",
-                        "progress",
-                        "stage_version",
-                        "checkpoint_id",
-                        "checkpoint_version",
-                        "checkpoint_work",
-                    ],
+                worker_rows.append(
                     [
                         sid,
                         rid,
@@ -119,46 +121,82 @@ class Analytics:
                         w["checkpoint_id"],
                         w["checkpoint_version"],
                         w["checkpoint_work"],
-                    ],
+                    ]
                 )
                 if w["waiting"]:
-                    self.insert(
-                        "waits",
-                        ["snapshot_id", "run_id", "worker_id", "resource_id", "version", "blocking"],
-                        [sid, rid, w["id"], w["waiting"], w["request_version"], 1],
-                    )
+                    waits.append([sid, rid, w["id"], w["waiting"], w["request_version"], 1])
                 for operation in w["capabilities"]:
                     yield_op = operation == "yield_and_resume"
-                    eligible = not yield_op or bool(w["checkpoint_id"])
-                    self.insert(
-                        "capabilities",
-                        [
-                            "snapshot_id",
-                            "run_id",
-                            "worker_id",
-                            "operation",
-                            "eligible",
-                            "checkpoint_id",
-                            "lost_work",
-                            "version",
-                        ],
+                    capabilities.append(
                         [
                             sid,
                             rid,
                             w["id"],
                             operation,
-                            int(eligible),
+                            int(not yield_op or bool(w["checkpoint_id"])),
                             w["checkpoint_id"] if yield_op else None,
                             w["progress"] - (w["checkpoint_work"] if yield_op else 0),
                             w["capability_version"],
-                        ],
+                        ]
                     )
-            for r in snap["resources"]:
-                self.insert(
-                    "resources",
-                    ["snapshot_id", "run_id", "id", "owner", "version", "capacity", "exclusive"],
-                    [sid, rid, r["id"], r["owner"], r["version"], r["capacity"], int(r["exclusive"])],
-                )
+            self.insert_rows(
+                "workers",
+                [
+                    "snapshot_id",
+                    "run_id",
+                    "id",
+                    "attempt",
+                    '"state"',
+                    "progress",
+                    "stage_version",
+                    "checkpoint_id",
+                    "checkpoint_version",
+                    "checkpoint_work",
+                ],
+                worker_rows,
+            )
+            self.insert_rows(
+                "waits",
+                [
+                    "snapshot_id",
+                    "run_id",
+                    "worker_id",
+                    "resource_id",
+                    "version",
+                    "blocking",
+                ],
+                waits,
+            )
+            self.insert_rows(
+                "capabilities",
+                [
+                    "snapshot_id",
+                    "run_id",
+                    "worker_id",
+                    "operation",
+                    "eligible",
+                    "checkpoint_id",
+                    "lost_work",
+                    "version",
+                ],
+                capabilities,
+            )
+            self.insert_rows(
+                "resources",
+                [
+                    "snapshot_id",
+                    "run_id",
+                    "id",
+                    "owner",
+                    "version",
+                    "capacity",
+                    "exclusive",
+                ],
+                [
+                    [sid, rid, r["id"], r["owner"], r["version"], r["capacity"], int(r["exclusive"])]
+                    for r in snap["resources"]
+                ],
+            )
             self.execute(
                 "UPDATE snapshots SET complete=1 WHERE id={sid} AND run_id={rid}", {"sid": sid, "rid": rid}
             )
@@ -174,7 +212,12 @@ class Analytics:
     def query(self, filename, snap):
         sql = (SQL_DIR / filename).read_text()
         started = time.perf_counter()
-        rows = [dict(r) for r in self.execute(sql, {"sid": snap["id"], "rid": snap["run_id"]}).fetchall()]
+        try:
+            rows = [dict(r) for r in self.execute(sql, {"sid": snap["id"], "rid": snap["run_id"]}).fetchall()]
+        except Exception as exc:
+            self.available = False
+            self.error = f"Telemetry query failed ({type(exc).__name__}); reconnect to retry"
+            raise TelemetryError(self.error) from None
         self.queries.append(
             {
                 "file": filename,

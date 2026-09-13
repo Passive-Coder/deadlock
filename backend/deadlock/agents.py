@@ -326,7 +326,9 @@ class AgentManager:
                     )
             except (psutil.Error, Rejection):
                 if record["source"] == "adopted process":
-                    record["state"], record["controls"] = "EXITED", []
+                    record["state"] = "STOPPED" if record["state"] == "STOPPING" else "EXITED"
+                    record["controls"] = []
+                    record["cpu"], record["memory"] = 0, 0
         self.observed = observed
         self.host = {
             "cpu": psutil.cpu_percent(),
@@ -353,13 +355,16 @@ class AgentManager:
         return {"cpu": round(cpu, 1), "memory": memory, "children": len(members) - 1}
 
     def checked_process(self, record):
-        proc = psutil.Process(record["pid"])
-        if (
-            proc.create_time() != record["created"]
-            or not proc.is_running()
-            or proc.status() == psutil.STATUS_ZOMBIE
-        ):
-            raise Rejection("PROCESS_CHANGED", "Process exited or PID was reused")
+        try:
+            proc = psutil.Process(record["pid"])
+            if (
+                proc.create_time() != record["created"]
+                or not proc.is_running()
+                or proc.status() == psutil.STATUS_ZOMBIE
+            ):
+                raise Rejection("PROCESS_CHANGED", "Process exited or PID was reused")
+        except psutil.NoSuchProcess:
+            raise Rejection("PROCESS_CHANGED", "Process exited before the action") from None
         if proc.pid in self.protected_pids():
             raise Rejection("PROTECTED_PROCESS", "DEADLOCK and its parent processes cannot be controlled")
         return proc
@@ -585,12 +590,51 @@ class AgentManager:
             if action == "resume":
                 record["state"], record["controls"] = "RUNNING", ["pause", "stop"]
             else:
-                proc.send_signal(signal.SIGTERM)
                 record["state"], record["controls"] = "STOPPING", []
-                record["note"] = "Termination requested; waiting for process exit"
+                record["note"] = (
+                    "Stopping the visible process tree; remaining processes are killed after 3 seconds"
+                )
+                members = [proc, *proc.children(recursive=True)]
+                for member in reversed(members):
+                    try:
+                        member.send_signal(signal.SIGTERM)
+                    except psutil.NoSuchProcess:
+                        pass
+                task = asyncio.create_task(self.finish_stop(agent_id, members))
+                self.tasks.add(task)
+                task.add_done_callback(self.tasks.discard)
         self.event(f"agent.{action}", f"{action.title()} requested for {record['name']}", agent_id)
         self.save()
         return deepcopy(record)
+
+    async def finish_stop(self, agent_id, members):
+        deadline = time.monotonic() + 3
+        remaining = members
+        while remaining and time.monotonic() < deadline:
+            alive = []
+            for proc in remaining:
+                try:
+                    if proc.is_running() and proc.status() != psutil.STATUS_ZOMBIE:
+                        alive.append(proc)
+                except psutil.NoSuchProcess:
+                    pass
+            remaining = alive
+            if remaining:
+                await asyncio.sleep(0.05)
+        for proc in remaining:
+            try:
+                # psutil checks PID + creation time before sending the signal.
+                proc.kill()
+            except psutil.NoSuchProcess:
+                pass
+            except psutil.AccessDenied:
+                self.records[agent_id]["note"] = "A process denied termination; check its original terminal"
+        if remaining:
+            self.event(
+                "agent.stop_escalated",
+                "Killed remaining processes after the termination grace period",
+                agent_id,
+            )
 
     def detail(self, agent_id):
         record = next((r for r in self.list() if r["id"] == agent_id), None)
@@ -642,9 +686,9 @@ class AgentManager:
         for agent_id, proc in self.processes.items():
             if proc.returncode is None:
                 try:
-                    self.records[agent_id]["state"] = "STOPPING"
-                    proc.terminate()
-                except ProcessLookupError:
+                    if "stop" in self.records[agent_id]["controls"]:
+                        await self.control(agent_id, "stop")
+                except (ProcessLookupError, psutil.Error, Rejection):
                     pass
         if self.tasks:
             await asyncio.wait(self.tasks, timeout=5)

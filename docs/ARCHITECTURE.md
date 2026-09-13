@@ -1,6 +1,6 @@
 # Implementation contract
 
-DEADLOCK has two connected workspaces: real local coding agents, and an instrumented resource-recovery lab. Process CPU, RSS memory, working directories, children, and open files are observations. Open files are not exclusive locks. Resource ownership and wait edges come only from the runner or explicit lease API.
+DEADLOCK has two connected workspaces: real local coding agents, and an instrumented resource-recovery lab. Process CPU, RSS memory, working directories, children, and open files are observations. Open files are not exclusive locks. Resource ownership and wait edges come only from the instrumented runner.
 
 The backend is a single-process FastAPI service on loopback. React renders real polled state. SQLite is the explicit development analytics engine; selecting Exasol uses PyExasol transactions and SQL on Exasol, and never silently falls back. Snapshots and relevant-scope version checks protect recovery. Artifacts are validated before publication and independently revalidated at incident resolution.
 

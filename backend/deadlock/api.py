@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from .agents import AgentManager
-from .analytics import Analytics
+from .analytics import Analytics, TelemetryError
 from .config import Settings
 from .mediator import Mediator
 from .runner import Rejection, Runner, SCENARIOS
@@ -139,6 +139,10 @@ def create_app(settings=None):
     @app.exception_handler(Rejection)
     async def rejection_handler(request, exc):
         return JSONResponse({"detail": str(exc), "code": exc.code}, status_code=409)
+
+    @app.exception_handler(TelemetryError)
+    async def telemetry_error_handler(request, exc):
+        return JSONResponse({"detail": str(exc), "code": "TELEMETRY_UNAVAILABLE"}, status_code=503)
 
     @app.get("/api/health")
     def health():

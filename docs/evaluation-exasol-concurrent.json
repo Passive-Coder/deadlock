@@ -1,0 +1,46 @@
+{
+  "measured_at": "2026-09-13T14:47:32Z",
+  "machine": {
+    "os": "Darwin",
+    "architecture": "arm64",
+    "python": "3.11.5"
+  },
+  "live_trials_requested": true,
+  "exasol_verified": false,
+  "trials": [
+    {
+      "run_id": "29219685-466f-448b-8898-5c9ef69cdc2b",
+      "scenario": "canonical",
+      "strategy": "none",
+      "seed": 42,
+      "engine": "exasol",
+      "telemetry_available": false,
+      "status": "TIMEOUT",
+      "incident_status": null,
+      "reason": "Snapshot persistence failed (ExaQueryError)",
+      "duration_seconds": 10.104,
+      "recovery_seconds": null,
+      "discarded_work": 0,
+      "preserved_work": 0,
+      "artifact_count": 0,
+      "validated": false,
+      "model": null,
+      "model_latency_ms": 0,
+      "model_calls": 0,
+      "tool_calls": 0,
+      "plan_attempts": 0,
+      "selected_worker": null,
+      "sql_query_ms": [],
+      "evidence_gap": false,
+      "config": {
+        "persistence_seconds": 2.0,
+        "freshness_seconds": 2.0,
+        "incident_budget_seconds": 60.0,
+        "sql_engine": "exasol",
+        "mediator": "codex",
+        "mediator_reasoning_effort": "low"
+      }
+    }
+  ],
+  "codex_version": "codex-cli 0.154.0-alpha.6.2"
+}

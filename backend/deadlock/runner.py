@@ -327,6 +327,14 @@ class Runner:
             "resources": deepcopy(self.run["resources"]),
         }
 
+    @synchronized
+    def refresh_snapshot(self):
+        snap = self.snapshot()
+        if not self.analytics.snapshot(snap):
+            raise Rejection("TELEMETRY_UNAVAILABLE", "Cannot refresh complete recovery evidence")
+        self.persisted = snap
+        return snap
+
     def detect(self, snap, now=None):
         now = time.time() if now is None else now
         if now - snap["captured"] > self.settings.freshness or not self.analytics.available:

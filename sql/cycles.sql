@@ -6,7 +6,7 @@ WITH edges AS (
     JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id
     WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1
       AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1
-      AND w.state='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id
+      AND w."state"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id
 )
 SELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc
 FROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter

@@ -11,6 +11,7 @@ import time
 
 import httpx
 
+from .analytics import TelemetryError
 from .runner import Rejection, uid
 
 
@@ -286,13 +287,8 @@ class Mediator:
                     if exc.code != "STALE_PLAN" or incident["attempts"] >= 2:
                         raise
                     incident["status"] = "INVESTIGATING"
-                    snap = runner.snapshot()
-                    if not runner.analytics.snapshot(snap):
-                        raise Rejection(
-                            "TELEMETRY_UNAVAILABLE", "Cannot refresh evidence after ownership conflict"
-                        ) from exc
-                    runner.persisted = snap
-        except (Rejection, TimeoutError, ValueError, OSError, httpx.HTTPError) as exc:
+                    runner.refresh_snapshot()
+        except (Rejection, TelemetryError, TimeoutError, ValueError, OSError, httpx.HTTPError) as exc:
             if (
                 runner.run
                 and runner.run["id"] == run_id

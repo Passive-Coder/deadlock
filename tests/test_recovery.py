@@ -313,3 +313,47 @@ def test_no_recovery_baseline_has_no_mutations(runner):
     assert all(w["state"] == "WAITING" for w in runner.run["workers"])
     runner.stop()
     assert runner.run["status"] == "CANCELLED"
+
+
+def test_already_cleared_cycle_does_not_apply_old_plan(runner):
+    blocked(runner)
+    chosen = plan(runner)
+    # Another cooperative action has released one lease since proposal creation.
+    runner.resource("r0")["owner"] = None
+    before = deepcopy(runner.run["workers"])
+    result = runner.execute(chosen["id"], uid())
+    assert result["status"] == "ALREADY_CLEAR"
+    assert runner.run["workers"] == before
+    assert runner.run["discarded_work"] == 0
+    assert runner.run["incident"]["status"] == "VERIFYING"
+    finish(runner)
+    assert runner.run["incident"]["status"] == "RESOLVED"
+
+
+def test_snapshot_retry_does_not_duplicate_or_replace_evidence(runner):
+    blocked(runner)
+    original = deepcopy(runner.persisted)
+    replay = deepcopy(original)
+    replay["resources"][0]["owner"] = None
+    assert runner.analytics.snapshot(replay)
+    stored = runner.analytics.execute(
+        "SELECT owner FROM resources WHERE snapshot_id={sid} AND run_id={rid} AND id={resource}",
+        {"sid": original["id"], "rid": original["run_id"], "resource": original["resources"][0]["id"]},
+    ).fetchall()
+    assert len(stored) == 1
+    assert dict(stored[0])["owner"] == original["resources"][0]["owner"]
+
+
+async def test_query_failure_is_explicit_and_never_invokes_recovery(runner, monkeypatch):
+    blocked(runner)
+
+    def unavailable(*args, **kwargs):
+        raise RuntimeError("sensitive database connection details")
+
+    monkeypatch.setattr(runner.analytics, "execute", unavailable)
+    await Mediator(runner).investigate()
+    incident = runner.run["incident"]
+    assert incident["status"] == "UNRESOLVED"
+    assert not runner.analytics.available
+    assert "sensitive" not in incident["reason"]
+    assert not runner.operations
