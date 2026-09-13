@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from .agents import AgentManager
+from .governor import Governor
 from .analytics import Analytics, TelemetryError
 from .config import Settings
 from .mediator import Mediator
@@ -39,6 +40,10 @@ class ControlAgent(BaseModel):
     prompt: str | None = Field(default=None, max_length=30000)
 
 
+class ToggleControl(BaseModel):
+    enabled: bool
+
+
 class ExecutePlan(BaseModel):
     plan_id: str = Field(max_length=100)
     operation_id: str = Field(min_length=8, max_length=100)
@@ -49,6 +54,7 @@ def create_app(settings=None):
     analytics = Analytics(settings)
     runner = Runner(settings, analytics)
     agents = AgentManager(settings)
+    governor = Governor(agents)
     mediator = Mediator(runner)
     tasks = set()
     jobs = {"mediator": None}
@@ -79,6 +85,7 @@ def create_app(settings=None):
         while True:
             try:
                 await asyncio.to_thread(agents.discover)
+                await governor.tick()
             except Exception as exc:
                 errors.append(
                     {"time": time.time(), "component": "process monitor", "error": type(exc).__name__}
@@ -102,6 +109,7 @@ def create_app(settings=None):
             task.cancel()
         if tasks:
             await asyncio.gather(*list(tasks), return_exceptions=True)
+        governor.release("Backend shutting down")
         runner.stop()
         await agents.close()
         if analytics.db:
@@ -109,6 +117,7 @@ def create_app(settings=None):
 
     app = FastAPI(title="DEADLOCK", version="0.1.0", lifespan=lifespan)
     app.state.runner, app.state.agents, app.state.mediator = runner, agents, mediator
+    app.state.governor = governor
 
     @app.middleware("http")
     async def local_boundary(request: Request, call_next):
@@ -156,6 +165,7 @@ def create_app(settings=None):
             "time": time.time(),
             "agents": [{k: v for k, v in a.items() if k != "logs"} for a in agents.list()],
             "host": agents.host,
+            "governor": governor.state(),
             "run": run,
             "telemetry": analytics.status(),
             "errors": errors,
@@ -170,6 +180,20 @@ def create_app(settings=None):
             "events": list(agents.events)[-100:],
         }
 
+    @app.get("/api/metrics")
+    def metrics(seconds: int = 300):
+        return agents.monitor.series(max(10, min(600, seconds)))
+
+    @app.post("/api/governor")
+    async def configure_governor(body: ToggleControl):
+        governor.configure(body.enabled)
+        return governor.state()
+
+    @app.post("/api/agents/{agent_id}/automation")
+    async def configure_agent_automation(agent_id: str, body: ToggleControl):
+        governor.set_agent(agent_id, body.enabled)
+        return governor.state()
+
     @app.post("/api/agents")
     async def launch(body: LaunchAgent):
         return await agents.launch(**body.model_dump())
@@ -181,6 +205,11 @@ def create_app(settings=None):
     @app.post("/api/agents/{agent_id}/control")
     async def agent_control(agent_id: str, body: ControlAgent):
         try:
+            if governor.paused and governor.paused["agent_id"] == agent_id:
+                governor.release("Manual control took priority")
+                if body.action == "resume":
+                    agents.records[agent_id]["manual_until"] = time.time() + 60
+                    return agents.records[agent_id]
             return await agents.control(agent_id, body.action, body.prompt)
         except (RuntimeError, OSError, TimeoutError) as exc:
             raise HTTPException(409, str(exc)[:300]) from None

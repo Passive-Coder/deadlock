@@ -9,11 +9,14 @@ from pathlib import Path
 import shutil
 import signal
 import time
+import threading
 from uuid import uuid4
 
 import psutil
 
 from .runner import Rejection
+from .monitor import Monitor
+from .pause_watchdog import PauseLease
 
 
 def identify(name, executable, args):
@@ -215,11 +218,13 @@ class CodexBridge:
 class AgentManager:
     def __init__(self, settings):
         self.settings = settings
+        self.lock = threading.RLock()
         self.records = {}
         self.processes = {}
         self.tasks = set()
         self.observed = []
-        self.samples = {}
+        self.monitor = Monitor()
+        self.auto_leases = {}
         self.events = deque(maxlen=300)
         self.bridge = CodexBridge()
         self.host = {}
@@ -256,6 +261,11 @@ class AgentManager:
         return {os.getpid(), *[p.pid for p in psutil.Process().parents()]}
 
     def discover(self):
+        with self.lock:
+            self._discover()
+
+    def _discover(self):
+        psutil.process_iter.cache_clear()
         protected = self.protected_pids()
         internal = {p.pid for p in psutil.Process().children(recursive=True)}
         matches = []
@@ -275,6 +285,7 @@ class AgentManager:
             except (psutil.Error, OSError):
                 continue
         match_pids = {p.pid for p, _, _ in matches}
+        standalone_pids = {p.pid for p, _, infra in matches if not infra}
         observed = []
         owned_pids = {
             r.get("pid")
@@ -287,12 +298,12 @@ class AgentManager:
                 if (
                     proc.pid in internal
                     or proc.pid in owned_pids
-                    or ancestors.intersection(match_pids | owned_pids)
+                    or ancestors.intersection(standalone_pids | owned_pids)
+                    or (infrastructure and ancestors.intersection(match_pids))
                 ):
                     continue
                 created = proc.create_time()
                 proc_id = f"process:{proc.pid}:{created}"
-                metrics = self.metrics(proc)
                 is_protected = proc.pid in protected or infrastructure
                 observed.append(
                     {
@@ -309,7 +320,8 @@ class AgentManager:
                         "note": "Shared runtime / parent process — observe only"
                         if is_protected
                         else "Adopt this process to enable lifecycle controls",
-                        **metrics,
+                        "cpu": None,
+                        "memory": None,
                     }
                 )
             except (psutil.Error, OSError):
@@ -319,7 +331,6 @@ class AgentManager:
                 continue
             try:
                 proc = self.checked_process(record)
-                record.update(self.metrics(proc))
                 if record["source"] == "adopted process" and record["state"] != "STOPPING":
                     record["state"] = "PAUSED" if proc.status() == psutil.STATUS_STOPPED else "RUNNING"
                     record["controls"] = (
@@ -333,29 +344,15 @@ class AgentManager:
                     record["controls"] = []
                     record["cpu"], record["memory"] = 0, 0
         self.observed = observed
-        self.host = {
-            "cpu": psutil.cpu_percent(),
-            "memory_used": psutil.virtual_memory().used,
-            "memory_total": psutil.virtual_memory().total,
-            "logical_cpus": psutil.cpu_count(),
-            "platform": os.uname().sysname,
-            "updated": time.time(),
-        }
-
-    def metrics(self, proc):
-        members = [proc, *proc.children(recursive=True)]
-        cpu, memory = 0.0, 0
-        for member in members:
-            try:
-                key = (member.pid, member.create_time())
-                sampled = self.samples.setdefault(key, member)
-                cpu += sampled.cpu_percent()
-                memory += sampled.memory_info().rss
-            except psutil.Error:
-                continue
-        if len(self.samples) > 2000:
-            self.samples = {key: p for key, p in self.samples.items() if p.is_running()}
-        return {"cpu": round(cpu, 1), "memory": memory, "children": len(members) - 1}
+        active = [
+            r for r in self.records.values() if r["state"] in {"RUNNING", "PAUSED", "STOPPING", "STARTING"}
+        ]
+        measured, self.host = self.monitor.sample([*active, *observed])
+        for record in [*active, *observed]:
+            if record["id"] in measured:
+                record.update(measured[record["id"]])
+            else:
+                record.update(cpu=None, memory=None, cpu_capacity=None, metrics_partial=True)
 
     def checked_process(self, record):
         try:
@@ -530,6 +527,10 @@ class AgentManager:
             self.save()
 
     def adopt(self, process_id):
+        with self.lock:
+            return self._adopt(process_id)
+
+    def _adopt(self, process_id):
         observation = next((r for r in self.observed if r["id"] == process_id), None)
         if not observation or observation["protected"]:
             raise Rejection(
@@ -551,7 +552,13 @@ class AgentManager:
         self.save()
         return deepcopy(record)
 
-    async def control(self, agent_id, action, prompt=None):
+    async def control(self, agent_id, action, prompt=None, *, automatic=False, lease_seconds=20):
+        with self.lock:
+            return await self._control(
+                agent_id, action, prompt, automatic=automatic, lease_seconds=lease_seconds
+            )
+
+    async def _control(self, agent_id, action, prompt=None, *, automatic=False, lease_seconds=20):
         if agent_id.startswith("session:"):
             return await self.bridge.control(agent_id.removeprefix("session:"), action, prompt)
         if action == "adopt":
@@ -571,37 +578,58 @@ class AgentManager:
                 record.get("access", "read-only"),
             )
         proc = self.checked_process(record)
+        if not automatic:
+            record["manual_until"] = time.time() + 60
         if action == "pause":
             paused = []
+            lease = PauseLease(lease_seconds) if automatic else None
             try:
                 # Freeze the parent first so it cannot create more children while enumerating.
+                if proc.status() == psutil.STATUS_STOPPED:
+                    raise Rejection("ALREADY_PAUSED", "This process was already suspended externally")
+                if lease:
+                    lease.watch([proc])
                 proc.suspend()
                 paused.append(proc)
-                for child in proc.children(recursive=True):
+                children = [p for p in proc.children(recursive=True) if p.status() != psutil.STATUS_STOPPED]
+                if lease:
+                    lease.watch(children)
+                for child in children:
                     try:
                         child.suspend()
                         paused.append(child)
                     except psutil.NoSuchProcess:
                         pass
-            except psutil.Error:
+            except (psutil.Error, Rejection, RuntimeError, OSError):
                 for item in reversed(paused):
                     try:
                         item.resume()
                     except psutil.Error:
                         pass
+                if lease:
+                    lease.disarm()
                 raise Rejection(
                     "PAUSE_FAILED",
                     "Could not suspend the entire visible process tree; suspension was rolled back",
                 ) from None
+            if lease:
+                self.auto_leases[agent_id] = lease
             self.paused[agent_id] = paused
+            record["pause_owner"] = "automatic" if automatic else "manual"
             record["state"], record["controls"] = "PAUSED", ["resume", "stop"]
         elif action in {"resume", "stop"}:
-            for child in reversed(self.paused.get(agent_id, [proc, *proc.children(recursive=True)])):
+            for child in reversed(
+                self.paused[agent_id] if agent_id in self.paused else [proc, *proc.children(recursive=True)]
+            ):
                 try:
                     child.resume()
                 except psutil.NoSuchProcess:
                     continue
             self.paused.pop(agent_id, None)
+            lease = self.auto_leases.pop(agent_id, None)
+            if lease:
+                lease.disarm()
+            record["pause_owner"] = None
             if action == "resume":
                 record["state"], record["controls"] = "RUNNING", ["pause", "stop"]
             else:
@@ -624,6 +652,28 @@ class AgentManager:
         self.event(f"agent.{action}", f"{action.title()} requested for {record['name']}", agent_id)
         self.save()
         return deepcopy(record)
+
+    def release_auto(self, agent_id):
+        with self.lock:
+            self._release_auto(agent_id)
+
+    def _release_auto(self, agent_id):
+        # Release surviving children even if the original root exited while paused.
+        if agent_id not in self.auto_leases:
+            return
+        for proc in reversed(self.paused.get(agent_id, [])):
+            try:
+                proc.resume()
+            except psutil.NoSuchProcess:
+                pass
+        self.auto_leases.pop(agent_id).disarm()
+        self.paused.pop(agent_id, None)
+        record = self.records.get(agent_id)
+        if record:
+            record["pause_owner"] = None
+            if record["state"] == "PAUSED":
+                record["state"], record["controls"] = "RUNNING", ["pause", "stop"]
+        self.save()
 
     async def finish_stop(self, agent_id, members):
         def live_members(items):
@@ -687,10 +737,12 @@ class AgentManager:
                 proc = psutil.Process(record["pid"])
                 if proc.create_time() != record["created"]:
                     raise psutil.NoSuchProcess(proc.pid)
-                for item in [proc, *proc.children(recursive=True)][:100]:
-                    record["process_tree"].append(
-                        {"pid": item.pid, "name": item.name(), "status": item.status()}
-                    )
+                attributed = self.monitor.attributed.get(agent_id, [])
+                for measured in attributed[:100]:
+                    item = psutil.Process(measured["pid"])
+                    if item.create_time() != measured["created"]:
+                        continue
+                    record["process_tree"].append({**measured, "status": item.status()})
                     for opened in item.open_files()[:40]:
                         record["open_files"].append(
                             {
@@ -704,6 +756,10 @@ class AgentManager:
         return record
 
     def list(self):
+        with self.lock:
+            return deepcopy(self._list())
+
+    def _list(self):
         owned_session_ids = {
             r.get("session_id")
             for r in self.records.values()
@@ -716,6 +772,8 @@ class AgentManager:
         ]
 
     async def close(self):
+        for agent_id in list(self.auto_leases):
+            self.release_auto(agent_id)
         # Do not strand paused processes when the dashboard exits.
         for items in self.paused.values():
             for proc in reversed(items):
