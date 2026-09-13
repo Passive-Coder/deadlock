@@ -1,5 +1,6 @@
 from collections import deque
 from copy import deepcopy
+from functools import wraps
 import json
 import threading
 import time
@@ -32,6 +33,15 @@ class Rejection(ValueError):
         self.code = code
 
 
+def synchronized(method):
+    @wraps(method)
+    def locked(self, *args, **kwargs):
+        with self.lock:
+            return method(self, *args, **kwargs)
+
+    return locked
+
+
 class Runner:
     def __init__(self, settings, analytics):
         self.settings, self.analytics = settings, analytics
@@ -61,8 +71,15 @@ class Runner:
     def directory(self):
         return self.settings.data_dir / "runs" / self.run["id"]
 
+    @synchronized
     def event(self, kind, message, **data):
-        event = {"seq": self.run["event_count"] + 1, "time": time.time(), "type": kind, "message": message, **data}
+        event = {
+            "seq": self.run["event_count"] + 1,
+            "time": time.time(),
+            "type": kind,
+            "message": message,
+            **data,
+        }
         self.run["event_count"] += 1
         self.run["events"].append(event)
         self.run["events"] = self.run["events"][-500:]
@@ -70,6 +87,7 @@ class Runner:
             stream.write(json.dumps(event) + "\n")
         return event
 
+    @synchronized
     def save(self):
         temporary = self.directory / "state.tmp"
         temporary.write_text(json.dumps(self.run))
@@ -81,14 +99,37 @@ class Runner:
                 raise Rejection("INVALID_CONFIGURATION", "Unknown scenario or recovery strategy")
             if self.run and self.run["status"] == "RUNNING":
                 self.stop()
-            self.run = {"id": uid(), "epoch": self.epoch, "scenario": scenario, "seed": seed,
-                "strategy": strategy, "auto_recover": auto_recover, "mode": "scripted workers / logical resources",
-                "started": time.time(), "ended": None, "status": "RUNNING", "workers": [], "resources": [],
-                "incident": None, "artifacts": [], "events": [], "event_count": 0, "evidence_gap": False,
-                "discarded_work": 0, "preserved_work": 0, "barrier_open": False,
-                "config": {"persistence_seconds": self.settings.persistence, "freshness_seconds": self.settings.freshness,
-                           "incident_budget_seconds": self.settings.incident_budget, "sql_engine": self.analytics.kind,
-                           "mediator": self.settings.mediator}, "failure_injected": False}
+            self.run = {
+                "id": uid(),
+                "epoch": self.epoch,
+                "scenario": scenario,
+                "seed": seed,
+                "strategy": strategy,
+                "auto_recover": auto_recover,
+                "mode": "scripted workers / logical resources",
+                "started": time.time(),
+                "ended": None,
+                "status": "RUNNING",
+                "workers": [],
+                "resources": [],
+                "incident": None,
+                "artifacts": [],
+                "events": [],
+                "event_count": 0,
+                "evidence_gap": False,
+                "discarded_work": 0,
+                "preserved_work": 0,
+                "barrier_open": False,
+                "config": {
+                    "persistence_seconds": self.settings.persistence,
+                    "freshness_seconds": self.settings.freshness,
+                    "incident_budget_seconds": self.settings.incident_budget,
+                    "sql_engine": self.analytics.kind,
+                    "mediator": self.settings.mediator,
+                    "mediator_reasoning_effort": "low",
+                },
+                "failure_injected": False,
+            }
             self.directory.mkdir(parents=True, mode=0o700)
             rows = artifacts.dataset(seed)
             (self.directory / "input.csv").write_bytes(artifacts.csv_bytes(rows))
@@ -96,23 +137,52 @@ class Runner:
             count = 2 if scenario == "two_cycle" else 3
             names = ["Dataset session", "Renderer slot", "Artifact slot"][:count]
             for index, name in enumerate(names):
-                self.run["resources"].append({"id": f"r{index}", "name": name, "owner": None, "version": 0,
-                                               "capacity": 1, "exclusive": True})
+                self.run["resources"].append(
+                    {
+                        "id": f"r{index}",
+                        "name": name,
+                        "owner": None,
+                        "version": 0,
+                        "capacity": 1,
+                        "exclusive": True,
+                    }
+                )
             for index in range(count + int(scenario == "unrelated")):
                 worker_id = "ABCD"[index]
                 checkpoint = [8, 18, 4, 0][index]
                 if scenario == "changed_candidate":
                     checkpoint = [23, 2, 4, 0][index]
-                needs = [f"r{index}", f"r{(index+1) % count}"] if index < count else []
+                needs = [f"r{index}", f"r{(index + 1) % count}"] if index < count else []
                 if scenario in {"healthy", "contention"}:
                     needs = ["r0"]
-                self.run["workers"].append({"id": worker_id, "name": ["Analyst", "Reporter", "Packager", "Audit"][index] + f" {worker_id}",
-                    "kind": ["summary", "report", "package", "audit"][index], "attempt": uid(), "state": "QUEUED",
-                    "progress": 0, "total": len(rows), "computed_total": 0, "prepared_work": [24, 21, 18, 60][index],
-                    "checkpoint_at": checkpoint, "checkpoint_id": None, "checkpoint_version": 0, "checkpoint_work": 0,
-                    "checkpoint_hash": None, "version": 0, "request_version": 0, "capability_version": 1,
-                    "waiting": None, "needs": needs, "atomic": False, "last_progress": time.time(),
-                    "capabilities": [] if scenario == "no_recovery" else ["yield_and_resume", "restart_and_requeue"]})
+                self.run["workers"].append(
+                    {
+                        "id": worker_id,
+                        "name": ["Analyst", "Reporter", "Packager", "Audit"][index] + f" {worker_id}",
+                        "kind": ["summary", "report", "package", "audit"][index],
+                        "attempt": uid(),
+                        "state": "QUEUED",
+                        "progress": 0,
+                        "total": len(rows),
+                        "computed_total": 0,
+                        "prepared_work": [24, 21, 18, 60][index],
+                        "checkpoint_at": checkpoint,
+                        "checkpoint_id": None,
+                        "checkpoint_version": 0,
+                        "checkpoint_work": 0,
+                        "checkpoint_hash": None,
+                        "version": 0,
+                        "request_version": 0,
+                        "capability_version": 1,
+                        "waiting": None,
+                        "needs": needs,
+                        "atomic": False,
+                        "last_progress": time.time(),
+                        "capabilities": []
+                        if scenario == "no_recovery"
+                        else ["yield_and_resume", "restart_and_requeue"],
+                    }
+                )
             self.snap, self.persisted = None, None
             self.cycle_since.clear()
             self.pending.clear()
@@ -137,7 +207,11 @@ class Runner:
             w["waiting"] = rid
             w["request_version"] += 1
             if rid:
-                self.event("resource.wait", f"{w['name']} is waiting for {self.resource(rid)['name']}", worker_id=w["id"])
+                self.event(
+                    "resource.wait",
+                    f"{w['name']} is waiting for {self.resource(rid)['name']}",
+                    worker_id=w["id"],
+                )
 
     def acquire(self, w, resources):
         if any(self.resource(r)["owner"] not in {None, w["id"]} for r in resources):
@@ -147,7 +221,12 @@ class Runner:
             if r["owner"] is None:
                 r["owner"] = w["id"]
                 r["version"] += 1
-                self.event("resource.acquired", f"{w['name']} acquired {r['name']}", worker_id=w["id"], resource_id=rid)
+                self.event(
+                    "resource.acquired",
+                    f"{w['name']} acquired {r['name']}",
+                    worker_id=w["id"],
+                    resource_id=rid,
+                )
         self.request(w, None)
         return True
 
@@ -170,15 +249,29 @@ class Runner:
                 w["checkpoint_id"] = uid()
                 w["checkpoint_work"] = w["progress"]
                 w["checkpoint_version"] += 1
-                payload = json.dumps({"attempt": w["attempt"], "progress": w["progress"], "computed_total": w["computed_total"]}).encode()
+                payload = json.dumps(
+                    {
+                        "attempt": w["attempt"],
+                        "progress": w["progress"],
+                        "computed_total": w["computed_total"],
+                    }
+                ).encode()
                 (self.directory / f"checkpoint-{w['checkpoint_id']}.json").write_bytes(payload)
                 w["checkpoint_hash"] = artifacts.digest(payload)
-                self.event("checkpoint.saved", f"{w['name']} checkpointed {w['progress']} work units", worker_id=w["id"])
+                self.event(
+                    "checkpoint.saved",
+                    f"{w['name']} checkpointed {w['progress']} work units",
+                    worker_id=w["id"],
+                )
 
     def advance(self):
         cycle_fixture = self.run["scenario"] not in {"healthy", "contention"}
         members = [w for w in self.run["workers"] if w["needs"]]
-        if cycle_fixture and not self.run["barrier_open"] and all(w["progress"] >= w["prepared_work"] for w in members):
+        if (
+            cycle_fixture
+            and not self.run["barrier_open"]
+            and all(w["progress"] >= w["prepared_work"] for w in members)
+        ):
             self.run["barrier_open"] = True
             self.event("barrier.open", "All workers hold their first resource; requesting the next resource")
         for w in self.run["workers"]:
@@ -188,7 +281,11 @@ class Runner:
                 if not self.acquire(w, w["needs"]):
                     continue
                 self.transition(w, "RUNNING")
-                self.event("worker.readmitted", f"{w['name']} acquired all remaining resources together", worker_id=w["id"])
+                self.event(
+                    "worker.readmitted",
+                    f"{w['name']} acquired all remaining resources together",
+                    worker_id=w["id"],
+                )
             if w["state"] == "QUEUED":
                 if not self.acquire(w, w["needs"][:1]):
                     self.request(w, w["needs"][0])
@@ -211,15 +308,24 @@ class Runner:
                         raise ValueError("Computed work does not match input")
                     self.run["artifacts"].append(artifacts.publish(self.directory, w, self.rows))
                     self.transition(w, "COMPLETED")
-                    self.event("worker.completed", f"{w['name']} published a validated output", worker_id=w["id"])
+                    self.event(
+                        "worker.completed", f"{w['name']} published a validated output", worker_id=w["id"]
+                    )
                 except (ValueError, OSError) as exc:
                     self.transition(w, "FAILED")
                     self.event("worker.failed", str(exc), worker_id=w["id"])
                 self.release(w)
 
+    @synchronized
     def snapshot(self):
-        return {"id": uid(), "run_id": self.run["id"], "epoch": self.epoch, "captured": time.time(),
-                "workers": deepcopy(self.run["workers"]), "resources": deepcopy(self.run["resources"])}
+        return {
+            "id": uid(),
+            "run_id": self.run["id"],
+            "epoch": self.epoch,
+            "captured": time.time(),
+            "workers": deepcopy(self.run["workers"]),
+            "resources": deepcopy(self.run["resources"]),
+        }
 
     def detect(self, snap, now=None):
         now = time.time() if now is None else now
@@ -235,15 +341,29 @@ class Runner:
             if any(w["state"] != "WAITING" for w in ws):
                 continue
             key = "→".join(members)
-            signature = json.dumps([[(w["id"], w["attempt"], w["progress"], w["waiting"], w["request_version"]) for w in ws],
-                                    [(r["id"], r["owner"], r["version"]) for r in rs]])
+            signature = json.dumps(
+                [
+                    [(w["id"], w["attempt"], w["progress"], w["waiting"], w["request_version"]) for w in ws],
+                    [(r["id"], r["owner"], r["version"]) for r in rs],
+                ]
+            )
             present.add(key)
             previous = self.cycle_since.get(key)
             if previous is None or previous[1] != signature:
                 self.cycle_since[key] = (now, signature)
                 continue
-            if now - previous[0] >= self.settings.persistence and all(now-w["last_progress"] >= self.settings.persistence for w in ws):
-                qualifying.append({"key": key, "members": members, "resources": resources, "snapshot_id": snap["id"], "first_seen": previous[0]})
+            if now - previous[0] >= self.settings.persistence and all(
+                now - w["last_progress"] >= self.settings.persistence for w in ws
+            ):
+                qualifying.append(
+                    {
+                        "key": key,
+                        "members": members,
+                        "resources": resources,
+                        "snapshot_id": snap["id"],
+                        "first_seen": previous[0],
+                    }
+                )
         self.cycle_since = {k: v for k, v in self.cycle_since.items() if k in present}
         return qualifying
 
@@ -266,10 +386,27 @@ class Runner:
                         cycles = []
                     if cycles and not self.run["incident"]:
                         cycle = cycles[0]
-                        self.run["incident"] = {"id": uid(), **cycle, "status": "DETECTED", "detected": now,
-                            "ended": None, "attempts": 0, "tool_calls": 0, "trace": [], "plan": None,
-                            "verification": None, "reason": None, "model": None, "model_latency_ms": 0}
-                        self.event("incident.detected", "Persistent resource cycle detected: " + cycle["key"], snapshot_id=self.snap["id"])
+                        self.run["incident"] = {
+                            "id": uid(),
+                            **cycle,
+                            "status": "DETECTED",
+                            "detected": now,
+                            "ended": None,
+                            "attempts": 0,
+                            "tool_calls": 0,
+                            "trace": [],
+                            "plan": None,
+                            "verification": None,
+                            "reason": None,
+                            "model": None,
+                            "model_latency_ms": 0,
+                            "model_calls": 0,
+                        }
+                        self.event(
+                            "incident.detected",
+                            "Persistent resource cycle detected: " + cycle["key"],
+                            snapshot_id=self.snap["id"],
+                        )
                 else:
                     if len(self.pending) == self.pending.maxlen:
                         self.run["evidence_gap"] = True
@@ -278,12 +415,17 @@ class Runner:
             if incident:
                 if incident["status"] in {"EXECUTING", "VERIFYING"}:
                     self.verify()
-                if incident["status"] not in {"RESOLVED", "UNRESOLVED"} and now - incident["detected"] > self.settings.incident_budget:
+                if (
+                    incident["status"] not in {"RESOLVED", "UNRESOLVED"}
+                    and now - incident["detected"] > self.settings.incident_budget
+                ):
                     self.unresolved("Incident exceeded the configured time budget")
             if all(w["state"] in TERMINAL for w in self.run["workers"]):
                 if incident and incident["status"] not in {"RESOLVED", "UNRESOLVED"}:
                     self.verify()
-                self.run["status"] = "COMPLETED" if all(w["state"] == "COMPLETED" for w in self.run["workers"]) else "FAILED"
+                self.run["status"] = (
+                    "COMPLETED" if all(w["state"] == "COMPLETED" for w in self.run["workers"]) else "FAILED"
+                )
                 if incident and incident["status"] != "RESOLVED":
                     self.run["status"] = "FAILED"
                 self.run["ended"] = time.time()
@@ -295,6 +437,7 @@ class Runner:
                         self.run["status"] = "FAILED"
             self.save()
 
+    @synchronized
     def candidates(self):
         incident = self.run["incident"]
         if not incident or not self.persisted or not self.analytics.available:
@@ -302,20 +445,51 @@ class Runner:
         if time.time() - self.persisted["captured"] > self.settings.freshness:
             raise Rejection("STALE_TELEMETRY", "No fresh complete snapshot is available")
         rows = self.analytics.query("candidates.sql", self.persisted)
-        result = [{**r, "id": f"{self.persisted['id']}:{r['worker_id']}:{r['operation']}",
-                 "snapshot_id": self.persisted["id"], "evidence_id": f"candidate:{r['worker_id']}:{r['operation']}"}
-                for r in rows if r["worker_id"] in incident["members"]]
+        result = [
+            {
+                **r,
+                "id": f"{self.persisted['id']}:{r['worker_id']}:{r['operation']}",
+                "snapshot_id": self.persisted["id"],
+                "evidence_id": f"candidate:{r['worker_id']}:{r['operation']}",
+            }
+            for r in rows
+            if r["worker_id"] in incident["members"]
+        ]
         for candidate in result:
-            self.candidate_records[candidate["id"]] = {"candidate": deepcopy(candidate), "scope": self.scope(incident["members"])}
+            self.candidate_records[candidate["id"]] = {
+                "candidate": deepcopy(candidate),
+                "scope": self.scope(incident["members"]),
+            }
         if len(self.candidate_records) > 500:
             self.candidate_records = dict(list(self.candidate_records.items())[-250:])
         return result
 
+    @synchronized
     def scope(self, members):
-        return {"workers": [{k: w[k] for k in ["id", "attempt", "version", "request_version", "capability_version", "checkpoint_id", "checkpoint_version", "checkpoint_hash"]}
-                            for w in self.run["workers"] if w["id"] in members],
-                "resources": [{k: r[k] for k in ["id", "owner", "version", "capacity", "exclusive"]}
-                              for r in self.run["resources"] if r["id"] in self.run["incident"]["resources"]]}
+        return {
+            "workers": [
+                {
+                    k: w[k]
+                    for k in [
+                        "id",
+                        "attempt",
+                        "version",
+                        "request_version",
+                        "capability_version",
+                        "checkpoint_id",
+                        "checkpoint_version",
+                        "checkpoint_hash",
+                    ]
+                }
+                for w in self.run["workers"]
+                if w["id"] in members
+            ],
+            "resources": [
+                {k: r[k] for k in ["id", "owner", "version", "capacity", "exclusive"]}
+                for r in self.run["resources"]
+                if r["id"] in self.run["incident"]["resources"]
+            ],
+        }
 
     def propose(self, candidate, evidence_ids, rationale):
         with self.lock:
@@ -330,14 +504,27 @@ class Runner:
                 raise Rejection("MISSING_EVIDENCE", "Rationale must cite the selected candidate evidence")
             if incident["attempts"] >= 2:
                 raise Rejection("ATTEMPT_BUDGET", "Recovery plan budget exhausted")
-            plan = {"id": uid(), "run_id": self.run["id"], "epoch": self.epoch, "incident_id": incident["id"],
-                    "candidate": valid, "scope": self.scope(incident["members"]), "evidence_ids": evidence_ids,
-                    "rationale": rationale[:2000], "created": time.time()}
+            plan = {
+                "id": uid(),
+                "run_id": self.run["id"],
+                "epoch": self.epoch,
+                "incident_id": incident["id"],
+                "candidate": valid,
+                "scope": self.scope(incident["members"]),
+                "evidence_ids": evidence_ids,
+                "rationale": rationale[:2000],
+                "created": time.time(),
+            }
             self.plans[plan["id"]] = plan
             incident["plan"] = plan
             incident["attempts"] += 1
             incident["status"] = "PLAN_READY"
-            self.event("plan.proposed", f"Proposed {valid['operation']} for {valid['worker_id']}", plan_id=plan["id"], rationale=rationale[:2000])
+            self.event(
+                "plan.proposed",
+                f"Proposed {valid['operation']} for {valid['worker_id']}",
+                plan_id=plan["id"],
+                rationale=rationale[:2000],
+            )
             return plan
 
     def checkpoint(self, w):
@@ -346,12 +533,16 @@ class Runner:
             saved = json.loads(raw)
             valid = artifacts.digest(raw) == w["checkpoint_hash"] and saved["attempt"] == w["attempt"]
             valid = valid and saved["progress"] == w["checkpoint_work"]
-            valid = valid and saved["computed_total"] == sum(r["amount"] for r in self.rows[:saved["progress"]])
+            valid = valid and saved["computed_total"] == sum(
+                r["amount"] for r in self.rows[: saved["progress"]]
+            )
             if not valid:
                 raise ValueError()
             return saved
         except (OSError, ValueError, KeyError, TypeError):
-            raise Rejection("INVALID_CHECKPOINT", "Checkpoint is missing, corrupted, or belongs to another attempt") from None
+            raise Rejection(
+                "INVALID_CHECKPOINT", "Checkpoint is missing, corrupted, or belongs to another attempt"
+            ) from None
 
     def restart_all(self, operation_id):
         """Evaluation baseline: cooperatively restart only the affected sandbox workers."""
@@ -359,11 +550,19 @@ class Runner:
             incident = self.run["incident"]
             if self.run["strategy"] != "restart_all" or incident["status"] != "INVESTIGATING":
                 raise Rejection("INVALID_STATE", "Restart-all is available only in its evaluation baseline")
-            if not self.analytics.available or not self.persisted or time.time()-self.persisted["captured"] > self.settings.freshness:
+            if (
+                not self.analytics.available
+                or not self.persisted
+                or time.time() - self.persisted["captured"] > self.settings.freshness
+            ):
                 raise Rejection("TELEMETRY_UNAVAILABLE", "Fresh telemetry is required")
             members = [self.worker(wid) for wid in incident["members"]]
-            if any("restart_and_requeue" not in w["capabilities"] or w["state"] != "WAITING" for w in members):
-                raise Rejection("UNSUPPORTED_OPERATION", "All affected workers must support cooperative restart")
+            if any(
+                "restart_and_requeue" not in w["capabilities"] or w["state"] != "WAITING" for w in members
+            ):
+                raise Rejection(
+                    "UNSUPPORTED_OPERATION", "All affected workers must support cooperative restart"
+                )
             lost = sum(w["progress"] for w in members)
             for w in members:
                 self.transition(w, "PARKED")
@@ -377,8 +576,18 @@ class Runner:
             incident["status"] = "VERIFYING"
             incident["attempts"] = 1
             incident["model"] = "deterministic restart-all baseline"
-            result = {"status": "APPLIED", "operation_id": operation_id, "workers": incident["members"], "lost_work": lost, "preserved_work": 0}
-            self.event("baseline.applied", "Cooperatively restarted all affected workers with atomic readmission", **result)
+            result = {
+                "status": "APPLIED",
+                "operation_id": operation_id,
+                "workers": incident["members"],
+                "lost_work": lost,
+                "preserved_work": 0,
+            }
+            self.event(
+                "baseline.applied",
+                "Cooperatively restarted all affected workers with atomic readmission",
+                **result,
+            )
             return result
 
     def execute(self, plan_id, operation_id, fail_before_commit=False):
@@ -392,18 +601,56 @@ class Runner:
             if not plan or plan["epoch"] != self.epoch or plan["run_id"] != self.run["id"]:
                 raise Rejection("EPOCH_MISMATCH", "Plan does not belong to this active session epoch")
             incident = self.run["incident"]
-            if incident["id"] != plan["incident_id"] or incident["status"] not in {"PLAN_READY", "INVESTIGATING"}:
+            if incident["id"] != plan["incident_id"] or incident["status"] not in {
+                "PLAN_READY",
+                "INVESTIGATING",
+            }:
                 raise Rejection("INVALID_STATE", "Incident cannot execute a recovery in its current state")
-            if not self.analytics.available or not self.persisted or time.time() - self.persisted["captured"] > self.settings.freshness:
-                raise Rejection("TELEMETRY_UNAVAILABLE", "Fresh complete telemetry is required before recovery")
+            if (
+                not self.analytics.available
+                or not self.persisted
+                or time.time() - self.persisted["captured"] > self.settings.freshness
+            ):
+                raise Rejection(
+                    "TELEMETRY_UNAVAILABLE", "Fresh complete telemetry is required before recovery"
+                )
             if self.run["evidence_gap"]:
                 raise Rejection("EVIDENCE_GAP", "Telemetry buffer overflow prevents verified recovery")
+            members = incident["members"]
+            still_blocked = all(
+                self.worker(wid)["state"] == "WAITING"
+                and self.worker(wid)["waiting"] is not None
+                and self.resource(self.worker(wid)["waiting"])["owner"] == members[(index + 1) % len(members)]
+                for index, wid in enumerate(members)
+            )
+            if not still_blocked:
+                result = {
+                    "status": "ALREADY_CLEAR",
+                    "operation_id": operation_id,
+                    "plan_id": plan_id,
+                    "time": time.time(),
+                }
+                self.operations[operation_id] = result
+                incident["status"] = "VERIFYING"
+                self.event(
+                    "recovery.already_clear",
+                    "Original cycle cleared before execution; verifying outputs",
+                    **result,
+                )
+                self.verify()
+                return result
             if self.scope(incident["members"]) != plan["scope"]:
-                raise Rejection("STALE_PLAN", "Relevant ownership, request, checkpoint, or capability changed")
+                raise Rejection(
+                    "STALE_PLAN", "Relevant ownership, request, checkpoint, or capability changed"
+                )
             candidate = plan["candidate"]
             w = self.worker(candidate["worker_id"])
             op = candidate["operation"]
-            if w["id"] not in incident["members"] or op not in w["capabilities"] or op not in {"yield_and_resume", "restart_and_requeue"}:
+            if (
+                w["id"] not in incident["members"]
+                or op not in w["capabilities"]
+                or op not in {"yield_and_resume", "restart_and_requeue"}
+            ):
                 raise Rejection("UNSUPPORTED_OPERATION", "Worker does not declare this operation")
             saved = self.checkpoint(w) if op == "yield_and_resume" else {"progress": 0, "computed_total": 0}
             if fail_before_commit:
@@ -421,34 +668,70 @@ class Runner:
                 w["checkpoint_id"], w["checkpoint_hash"], w["checkpoint_work"] = None, None, 0
                 w["checkpoint_version"] += 1
             incident["status"] = "VERIFYING"
-            result = {"status": "APPLIED", "operation_id": operation_id, "plan_id": plan_id, "worker_id": w["id"],
-                      "attempt": w["attempt"], "lost_work": lost, "preserved_work": saved["progress"], "time": time.time()}
+            result = {
+                "status": "APPLIED",
+                "operation_id": operation_id,
+                "plan_id": plan_id,
+                "worker_id": w["id"],
+                "attempt": w["attempt"],
+                "lost_work": lost,
+                "preserved_work": saved["progress"],
+                "time": time.time(),
+            }
             self.operations[operation_id] = result
-            self.event("recovery.applied", f"Parked {w['name']}; released resources and retained {saved['progress']} work units", **result)
+            self.event(
+                "recovery.applied",
+                f"Parked {w['name']}; released resources and retained {saved['progress']} work units",
+                **result,
+            )
             self.save()
             return result
 
+    @synchronized
     def verify(self):
         incident = self.run["incident"]
         members = [self.worker(wid) for wid in incident["members"]]
         checks = []
         for w in members:
-            output = next((a for a in self.run["artifacts"] if a["worker_id"] == w["id"] and a["attempt"] == w["attempt"]), None)
-            check = artifacts.validate(self.directory / output["filename"], w["kind"], self.rows) if output else {"valid": False, "error": "Output not yet published"}
+            output = next(
+                (
+                    a
+                    for a in self.run["artifacts"]
+                    if a["worker_id"] == w["id"] and a["attempt"] == w["attempt"]
+                ),
+                None,
+            )
+            check = (
+                artifacts.validate(self.directory / output["filename"], w["kind"], self.rows)
+                if output
+                else {"valid": False, "error": "Output not yet published"}
+            )
             if output and check["sha256"] != output["sha256"]:
                 check["valid"], check["error"] = False, "Published artifact hash changed"
             checks.append({"worker_id": w["id"], "completed": w["state"] == "COMPLETED", **check})
-        clear = not any(w["waiting"] for w in members) and not any(r["owner"] in incident["members"] for r in self.run["resources"])
-        success = clear and all(c["completed"] and c["valid"] for c in checks) and not self.run["evidence_gap"]
-        incident["verification"] = {"checks": checks, "resources_clear": clear, "evidence_complete": not self.run["evidence_gap"], "valid": success}
+        clear = not any(w["waiting"] for w in members) and not any(
+            r["owner"] in incident["members"] for r in self.run["resources"]
+        )
+        success = (
+            clear and all(c["completed"] and c["valid"] for c in checks) and not self.run["evidence_gap"]
+        )
+        incident["verification"] = {
+            "checks": checks,
+            "resources_clear": clear,
+            "evidence_complete": not self.run["evidence_gap"],
+            "valid": success,
+        }
         if success:
             incident["status"], incident["ended"] = "RESOLVED", time.time()
-            incident["reason"] = "Affected workers completed, artifacts validated, and all leases and waits cleared"
+            incident["reason"] = (
+                "Affected workers completed, artifacts validated, and all leases and waits cleared"
+            )
             self.event("incident.resolved", incident["reason"])
         elif all(w["state"] in TERMINAL for w in members):
             self.unresolved("Completion, artifact validation, or evidence integrity failed")
         return incident["verification"]
 
+    @synchronized
     def unresolved(self, reason):
         incident = self.run["incident"]
         incident["status"], incident["reason"], incident["ended"] = "UNRESOLVED", reason, time.time()
@@ -467,26 +750,49 @@ class Runner:
                 self.event("run.cancelled", "Run stopped; active leases released")
                 self.save()
 
+    @synchronized
     def state(self):
         return deepcopy(self.run)
 
+    @synchronized
     def export(self):
         if not self.run:
             return None
         result = deepcopy(self.run)
-        result["events"] = [json.loads(line) for line in (self.directory / "events.jsonl").read_text().splitlines()]
+        result["events"] = [
+            json.loads(line) for line in (self.directory / "events.jsonl").read_text().splitlines()
+        ]
         result["snapshots"] = {"latest": self.persisted, "pending_count": len(self.pending)}
         result["queries"] = deepcopy(self.analytics.queries)
-        result["operations"] = [deepcopy(v) for v in self.operations.values() if self.plans[v["plan_id"]]["run_id"] == self.run["id"]]
+        result["operations"] = [
+            deepcopy(v)
+            for v in self.operations.values()
+            if self.plans[v["plan_id"]]["run_id"] == self.run["id"]
+        ]
         result["telemetry"] = self.analytics.status()
         return result
 
+    @synchronized
     def history(self):
         runs = []
         for path in (self.settings.data_dir / "runs").glob("*/state.json"):
             try:
                 r = json.loads(path.read_text())
-                runs.append({k: r.get(k) for k in ["id", "scenario", "strategy", "status", "started", "ended", "discarded_work", "preserved_work"]})
+                runs.append(
+                    {
+                        k: r.get(k)
+                        for k in [
+                            "id",
+                            "scenario",
+                            "strategy",
+                            "status",
+                            "started",
+                            "ended",
+                            "discarded_work",
+                            "preserved_work",
+                        ]
+                    }
+                )
             except (ValueError, OSError):
                 continue
         return sorted(runs, key=lambda r: r["started"], reverse=True)[:100]

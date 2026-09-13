@@ -64,7 +64,11 @@ def create_app(settings=None):
         while True:
             try:
                 await asyncio.to_thread(runner.tick)
-                if runner.run and runner.run["incident"] and (not jobs["mediator"] or jobs["mediator"].done()):
+                if (
+                    runner.run
+                    and runner.run["incident"]
+                    and (not jobs["mediator"] or jobs["mediator"].done())
+                ):
                     jobs["mediator"] = spawn(mediator.investigate())
             except Exception as exc:
                 errors.append({"time": time.time(), "component": "runner", "error": type(exc).__name__})
@@ -76,7 +80,9 @@ def create_app(settings=None):
             try:
                 await asyncio.to_thread(agents.discover)
             except Exception as exc:
-                errors.append({"time": time.time(), "component": "process monitor", "error": type(exc).__name__})
+                errors.append(
+                    {"time": time.time(), "component": "process monitor", "error": type(exc).__name__}
+                )
                 del errors[:-20]
             await asyncio.sleep(1)
 
@@ -114,7 +120,10 @@ def create_app(settings=None):
         origin = request.headers.get("origin")
         if origin and urlparse(origin).netloc not in {request.url.netloc, "127.0.0.1:5173", "localhost:5173"}:
             return JSONResponse({"detail": "Cross-origin access is not allowed"}, status_code=403)
-        if request.method in {"POST", "PUT", "PATCH", "DELETE"} and request.headers.get("x-deadlock-control") != "1":
+        if (
+            request.method in {"POST", "PUT", "PATCH", "DELETE"}
+            and request.headers.get("x-deadlock-control") != "1"
+        ):
             return JSONResponse({"detail": "Missing local control header"}, status_code=403)
         response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -122,7 +131,9 @@ def create_app(settings=None):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Cache-Control"] = "no-store"
         if request.url.path.startswith("/api/runs/") and "/artifacts/" in request.url.path:
-            response.headers["Content-Security-Policy"] = "sandbox; default-src 'none'; style-src 'unsafe-inline'"
+            response.headers["Content-Security-Policy"] = (
+                "sandbox; default-src 'none'; style-src 'unsafe-inline'"
+            )
         return response
 
     @app.exception_handler(Rejection)
@@ -137,11 +148,23 @@ def create_app(settings=None):
     def state():
         with runner.lock:
             run = runner.state()
-        return {"time": time.time(), "agents": [{k: v for k, v in a.items() if k != "logs"} for a in agents.list()],
-                "host": agents.host, "run": run, "telemetry": analytics.status(), "errors": errors,
-                "integrations": {"codex": agents.available["codex"], "claude": agents.available["claude"],
-                                 "codex_sessions": agents.bridge.error, "mediator": settings.mediator},
-                "roots": [str(p) for p in settings.roots], "scenarios": SCENARIOS, "events": list(agents.events)[-100:]}
+        return {
+            "time": time.time(),
+            "agents": [{k: v for k, v in a.items() if k != "logs"} for a in agents.list()],
+            "host": agents.host,
+            "run": run,
+            "telemetry": analytics.status(),
+            "errors": errors,
+            "integrations": {
+                "codex": agents.available["codex"],
+                "claude": agents.available["claude"],
+                "codex_sessions": agents.bridge.error,
+                "mediator": settings.mediator,
+            },
+            "roots": [str(p) for p in settings.roots],
+            "scenarios": SCENARIOS,
+            "events": list(agents.events)[-100:],
+        }
 
     @app.post("/api/agents")
     async def launch(body: LaunchAgent):
@@ -180,7 +203,9 @@ def create_app(settings=None):
     def export():
         with runner.lock:
             payload = runner.export()
-        return JSONResponse(payload, headers={"Content-Disposition": 'attachment; filename="deadlock-evidence.json"'})
+        return JSONResponse(
+            payload, headers={"Content-Disposition": 'attachment; filename="deadlock-evidence.json"'}
+        )
 
     @app.get("/api/runs/{run_id}/artifacts/{filename}")
     def artifact(run_id: str, filename: str):
@@ -241,13 +266,19 @@ def create_app(settings=None):
         async def stream():
             last = None
             while not await request.is_disconnected():
-                payload = json.dumps({"agents": list(agents.events)[-30:], "runner": runner.run["events"][-30:] if runner.run else []})
+                payload = json.dumps(
+                    {
+                        "agents": list(agents.events)[-30:],
+                        "runner": runner.run["events"][-30:] if runner.run else [],
+                    }
+                )
                 if payload != last:
                     yield "data: " + payload + "\n\n"
                     last = payload
                 else:
                     yield ": heartbeat\n\n"
                 await asyncio.sleep(1)
+
         return StreamingResponse(stream(), media_type="text/event-stream")
 
     build = Path(__file__).resolve().parents[2] / "frontend" / "dist"
@@ -260,7 +291,9 @@ def create_app(settings=None):
         if build.resolve() not in target.parents or not target.is_file():
             target = build / "index.html"
         if not target.is_file():
-            return JSONResponse({"detail": "Build the dashboard with npm --prefix frontend run build"}, status_code=503)
+            return JSONResponse(
+                {"detail": "Build the dashboard with npm --prefix frontend run build"}, status_code=503
+            )
         return FileResponse(target)
 
     return app
@@ -271,6 +304,7 @@ app = create_app()
 
 def main():
     import uvicorn
+
     host = os.getenv("DEADLOCK_HOST", "127.0.0.1")
     if host not in {"127.0.0.1", "localhost", "::1"}:
         raise SystemExit("DEADLOCK_HOST must be loopback")

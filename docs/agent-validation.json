@@ -1,0 +1,21 @@
+[
+  {
+    "test": "real_codex_pause_resume_stop",
+    "paused": true,
+    "final_state": "STOPPED",
+    "exit_code": -15
+  },
+  {
+    "test": "real_codex_completion",
+    "state": "COMPLETED",
+    "exit_code": 0,
+    "session_reported": true,
+    "expected_output_seen": true
+  },
+  {
+    "test": "real_claude_completion_or_auth_failure",
+    "state": "FAILED",
+    "exit_code": 1,
+    "output_seen": true
+  }
+]

@@ -1,4 +1,5 @@
 """Real local agent observations and explicit lifecycle controls."""
+
 import asyncio
 from collections import deque
 from copy import deepcopy
@@ -26,7 +27,10 @@ def identify(name, executable, args):
 
 def redact(text):
     import re
-    text = re.sub(r"(?i)(api[_-]?key|authorization|password|token)([\s\"':=]+)([^\s,\"}]{8,})", r"\1\2[redacted]", text)
+
+    text = re.sub(
+        r"(?i)(api[_-]?key|authorization|password|token)([\s\"':=]+)([^\s,\"}]{8,})", r"\1\2[redacted]", text
+    )
     return re.sub(r"\b(?:sk-[A-Za-z0-9_-]{12,}|gh[pousr]_[A-Za-z0-9]{12,})", "[redacted]", text)
 
 
@@ -53,10 +57,18 @@ class CodexBridge:
             if os.getenv("CODEX_APP_SERVER_SOCKET"):
                 argv += ["--sock", os.environ["CODEX_APP_SERVER_SOCKET"]]
             try:
-                self.process = await asyncio.create_subprocess_exec(*argv, stdin=asyncio.subprocess.PIPE,
-                    stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL, limit=4*1024*1024)
+                self.process = await asyncio.create_subprocess_exec(
+                    *argv,
+                    stdin=asyncio.subprocess.PIPE,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.DEVNULL,
+                    limit=4 * 1024 * 1024,
+                )
                 self.reader = asyncio.create_task(self.read())
-                await self.call("initialize", {"clientInfo": {"name": "deadlock", "title": "DEADLOCK", "version": "0.1.0"}})
+                await self.call(
+                    "initialize",
+                    {"clientInfo": {"name": "deadlock", "title": "DEADLOCK", "version": "0.1.0"}},
+                )
                 await self.send({"method": "initialized", "params": {}})
                 self.error = None
             except (OSError, TimeoutError, RuntimeError) as exc:
@@ -90,7 +102,9 @@ class CodexBridge:
                 future = self.futures.get(message.get("id"))
                 if "method" not in message and future and not future.done():
                     if "error" in message:
-                        future.set_exception(RuntimeError(message["error"].get("message", "Codex request rejected")))
+                        future.set_exception(
+                            RuntimeError(message["error"].get("message", "Codex request rejected"))
+                        )
                     else:
                         future.set_result(message.get("result", {}))
                 elif "id" in message and "method" in message:
@@ -99,7 +113,15 @@ class CodexBridge:
                     if method.endswith("requestApproval"):
                         await self.send({"id": message["id"], "result": {"decision": "decline"}})
                     else:
-                        await self.send({"id": message["id"], "error": {"code": -32601, "message": "Respond to this request in the original Codex client"}})
+                        await self.send(
+                            {
+                                "id": message["id"],
+                                "error": {
+                                    "code": -32601,
+                                    "message": "Respond to this request in the original Codex client",
+                                },
+                            }
+                        )
         except (OSError, ValueError, asyncio.CancelledError):
             pass
         finally:
@@ -118,14 +140,38 @@ class CodexBridge:
             for thread in result.get("data", []):
                 raw = thread.get("status", {})
                 kind = raw.get("type", "unknown") if isinstance(raw, dict) else str(raw)
-                state = {"active": "RUNNING", "idle": "IDLE", "notLoaded": "SAVED", "systemError": "ERROR"}.get(kind, kind.upper())
+                state = {
+                    "active": "RUNNING",
+                    "idle": "IDLE",
+                    "notLoaded": "SAVED",
+                    "systemError": "ERROR",
+                }.get(kind, kind.upper())
                 protected = thread["id"] == self.protected_thread
-                sessions.append({"id": "session:" + thread["id"], "session_id": thread["id"], "provider": "codex",
-                    "name": thread.get("name") or thread.get("preview", "").split("\n")[0][:90] or "Codex session",
-                    "state": state, "source": "shared session", "cwd": thread.get("cwd"), "pid": None,
-                    "cpu": None, "memory": None, "created": thread.get("createdAt"), "updated": thread.get("updatedAt"),
-                    "protected": protected, "controls": [] if protected else (["interrupt"] if state == "RUNNING" else ["continue"]),
-                    "note": "Current build session is protected" if protected else "Session metrics cannot be separated from the shared Codex process"})
+                sessions.append(
+                    {
+                        "id": "session:" + thread["id"],
+                        "session_id": thread["id"],
+                        "provider": "codex",
+                        "name": thread.get("name")
+                        or thread.get("preview", "").split("\n")[0][:90]
+                        or "Codex session",
+                        "state": state,
+                        "source": "shared session",
+                        "cwd": thread.get("cwd"),
+                        "pid": None,
+                        "cpu": None,
+                        "memory": None,
+                        "created": thread.get("createdAt"),
+                        "updated": thread.get("updatedAt"),
+                        "protected": protected,
+                        "controls": []
+                        if protected
+                        else (["interrupt"] if state == "RUNNING" else ["continue"]),
+                        "note": "Current build session is protected"
+                        if protected
+                        else "Session metrics cannot be separated from the shared Codex process",
+                    }
+                )
             self.sessions = sessions
             self.error = None
         except (OSError, RuntimeError, TimeoutError) as exc:
@@ -136,15 +182,21 @@ class CodexBridge:
         if session_id == self.protected_thread:
             raise Rejection("PROTECTED_SESSION", "The session building DEADLOCK is protected")
         if action == "interrupt":
-            thread = (await self.call("thread/read", {"threadId": session_id, "includeTurns": True}))["thread"]
-            turn = next((t for t in reversed(thread.get("turns", [])) if t.get("status") == "inProgress"), None)
+            thread = (await self.call("thread/read", {"threadId": session_id, "includeTurns": True}))[
+                "thread"
+            ]
+            turn = next(
+                (t for t in reversed(thread.get("turns", [])) if t.get("status") == "inProgress"), None
+            )
             if not turn:
                 raise Rejection("NO_ACTIVE_TURN", "This session has no active turn on the connected daemon")
             await self.call("turn/interrupt", {"threadId": session_id, "turnId": turn["id"]})
             return {"status": "INTERRUPT_REQUESTED"}
         if action == "continue" and prompt and prompt.strip():
             await self.call("thread/resume", {"threadId": session_id})
-            result = await self.call("turn/start", {"threadId": session_id, "input": [{"type": "text", "text": prompt.strip()}]})
+            result = await self.call(
+                "turn/start", {"threadId": session_id, "input": [{"type": "text", "text": prompt.strip()}]}
+            )
             return {"status": "TURN_STARTED", "turn_id": result["turn"]["id"]}
         raise Rejection("UNSUPPORTED_CONTROL", "Use interrupt or provide a follow-up prompt to continue")
 
@@ -204,6 +256,7 @@ class AgentManager:
 
     def discover(self):
         protected = self.protected_pids()
+        internal = {p.pid for p in psutil.Process().children(recursive=True)}
         matches = []
         for proc in psutil.process_iter(["pid", "name", "exe", "uids"], ad_value=None):
             try:
@@ -222,38 +275,67 @@ class AgentManager:
                 continue
         match_pids = {p.pid for p, _, _ in matches}
         observed = []
-        owned_pids = {r.get("pid") for r in self.records.values() if r["state"] in {"RUNNING", "PAUSED", "STOPPING", "STARTING"}}
+        owned_pids = {
+            r.get("pid")
+            for r in self.records.values()
+            if r["state"] in {"RUNNING", "PAUSED", "STOPPING", "STARTING"}
+        }
         for proc, provider, infrastructure in matches:
             try:
-                if proc.ppid() in match_pids or proc.pid in owned_pids:
+                ancestors = {p.pid for p in proc.parents()}
+                if (
+                    proc.pid in internal
+                    or proc.pid in owned_pids
+                    or ancestors.intersection(match_pids | owned_pids)
+                ):
                     continue
                 created = proc.create_time()
                 proc_id = f"process:{proc.pid}:{created}"
                 metrics = self.metrics(proc)
                 is_protected = proc.pid in protected or infrastructure
-                observed.append({"id": proc_id, "name": f"{provider.title()} {'runtime' if infrastructure else 'CLI'}",
-                    "provider": provider, "source": "observed process", "pid": proc.pid, "created": created,
-                    "state": "PAUSED" if proc.status() == psutil.STATUS_STOPPED else "RUNNING", "cwd": proc.cwd(),
-                    "protected": is_protected, "controls": [] if is_protected else ["adopt"],
-                    "note": "Shared runtime / parent process — observe only" if is_protected else "Adopt this process to enable lifecycle controls",
-                    **metrics})
+                observed.append(
+                    {
+                        "id": proc_id,
+                        "name": f"{provider.title()} {'runtime' if infrastructure else 'CLI'}",
+                        "provider": provider,
+                        "source": "observed process",
+                        "pid": proc.pid,
+                        "created": created,
+                        "state": "PAUSED" if proc.status() == psutil.STATUS_STOPPED else "RUNNING",
+                        "cwd": proc.cwd(),
+                        "protected": is_protected,
+                        "controls": [] if is_protected else ["adopt"],
+                        "note": "Shared runtime / parent process — observe only"
+                        if is_protected
+                        else "Adopt this process to enable lifecycle controls",
+                        **metrics,
+                    }
+                )
             except (psutil.Error, OSError):
                 continue
-        for record in self.records.values():
+        for record in list(self.records.values()):
             if record["state"] not in {"RUNNING", "PAUSED", "STOPPING", "STARTING"} or not record.get("pid"):
                 continue
             try:
                 proc = self.checked_process(record)
                 record.update(self.metrics(proc))
-                if record["source"] == "adopted process":
+                if record["source"] == "adopted process" and record["state"] != "STOPPING":
                     record["state"] = "PAUSED" if proc.status() == psutil.STATUS_STOPPED else "RUNNING"
+                    record["controls"] = (
+                        ["resume", "stop"] if record["state"] == "PAUSED" else ["pause", "stop"]
+                    )
             except (psutil.Error, Rejection):
                 if record["source"] == "adopted process":
                     record["state"], record["controls"] = "EXITED", []
         self.observed = observed
-        self.host = {"cpu": psutil.cpu_percent(), "memory_used": psutil.virtual_memory().used,
-                     "memory_total": psutil.virtual_memory().total, "logical_cpus": psutil.cpu_count(),
-                     "platform": os.uname().sysname, "updated": time.time()}
+        self.host = {
+            "cpu": psutil.cpu_percent(),
+            "memory_used": psutil.virtual_memory().used,
+            "memory_total": psutil.virtual_memory().total,
+            "logical_cpus": psutil.cpu_count(),
+            "platform": os.uname().sysname,
+            "updated": time.time(),
+        }
 
     def metrics(self, proc):
         members = [proc, *proc.children(recursive=True)]
@@ -268,11 +350,15 @@ class AgentManager:
                 continue
         if len(self.samples) > 2000:
             self.samples = {key: p for key, p in self.samples.items() if p.is_running()}
-        return {"cpu": round(cpu, 1), "memory": memory, "children": len(members)-1}
+        return {"cpu": round(cpu, 1), "memory": memory, "children": len(members) - 1}
 
     def checked_process(self, record):
         proc = psutil.Process(record["pid"])
-        if proc.create_time() != record["created"] or not proc.is_running() or proc.status() == psutil.STATUS_ZOMBIE:
+        if (
+            proc.create_time() != record["created"]
+            or not proc.is_running()
+            or proc.status() == psutil.STATUS_ZOMBIE
+        ):
             raise Rejection("PROCESS_CHANGED", "Process exited or PID was reused")
         if proc.pid in self.protected_pids():
             raise Rejection("PROTECTED_PROCESS", "DEADLOCK and its parent processes cannot be controlled")
@@ -295,15 +381,34 @@ class AgentManager:
         if resume and (len(resume) > 100 or not all(c.isalnum() or c in "-_" for c in resume)):
             raise Rejection("INVALID_SESSION", "Invalid session identifier")
         if provider == "codex":
-            args = [shutil.which(provider), "exec", "--json", "--color", "never", "--sandbox", access, "-C", str(path),
-                    "-c", 'approval_policy="never"']
+            args = [
+                shutil.which(provider),
+                "exec",
+                "--json",
+                "--color",
+                "never",
+                "--sandbox",
+                access,
+                "-C",
+                str(path),
+                "-c",
+                'approval_policy="never"',
+            ]
             if resume:
                 # Resume has its own parser: global options must precede the subcommand.
                 args += ["resume", resume, "-"]
             else:
                 args += ["-"]
         else:
-            args = [shutil.which(provider), "-p", "--output-format", "stream-json", "--verbose", "--permission-mode", "dontAsk"]
+            args = [
+                shutil.which(provider),
+                "-p",
+                "--output-format",
+                "stream-json",
+                "--verbose",
+                "--permission-mode",
+                "dontAsk",
+            ]
             if access == "read-only":
                 args += ["--tools", "Read,Glob,Grep", "--allowedTools", "Read,Glob,Grep"]
             else:
@@ -311,16 +416,46 @@ class AgentManager:
             if resume:
                 args += ["--resume", resume]
         agent_id = str(uuid4())
-        record = {"id": agent_id, "provider": provider, "name": name or f"{provider.title()} · {path.name}",
-            "cwd": str(path), "source": "managed process", "state": "STARTING", "session_id": resume,
-            "created": time.time(), "pid": None, "cpu": 0, "memory": 0, "children": 0, "controls": [],
-            "protected": False, "access": access, "logs": [], "log_truncated": False, "exit_code": None, "note": None}
+        record = {
+            "id": agent_id,
+            "provider": provider,
+            "name": name or f"{provider.title()} · {path.name}",
+            "cwd": str(path),
+            "source": "managed process",
+            "state": "STARTING",
+            "session_id": resume,
+            "created": time.time(),
+            "pid": None,
+            "cpu": 0,
+            "memory": 0,
+            "children": 0,
+            "controls": [],
+            "protected": False,
+            "access": access,
+            "logs": [],
+            "log_truncated": False,
+            "exit_code": None,
+            "note": None,
+        }
         env = dict(os.environ)
         env.pop("CLAUDECODE", None)
         env.pop("CODEX_THREAD_ID", None)
-        proc = await asyncio.create_subprocess_exec(*args, cwd=path, env=env, stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT, start_new_session=True, limit=2*1024*1024)
-        record.update(pid=proc.pid, created=psutil.Process(proc.pid).create_time(), state="RUNNING", controls=["pause", "stop"])
+        proc = await asyncio.create_subprocess_exec(
+            *args,
+            cwd=path,
+            env=env,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            start_new_session=True,
+            limit=2 * 1024 * 1024,
+        )
+        record.update(
+            pid=proc.pid,
+            created=psutil.Process(proc.pid).create_time(),
+            state="RUNNING",
+            controls=["pause", "stop"],
+        )
         self.records[agent_id] = record
         self.processes[agent_id] = proc
         proc.stdin.write(prompt.encode())
@@ -349,7 +484,11 @@ class AgentManager:
                     if item.get("type") == "reasoning" or event.get("type") == "stream_event":
                         continue
                     if event.get("type") == "assistant":
-                        event.get("message", {})["content"] = [c for c in event.get("message", {}).get("content", []) if c.get("type") != "thinking"]
+                        event.get("message", {})["content"] = [
+                            c
+                            for c in event.get("message", {}).get("content", [])
+                            if c.get("type") != "thinking"
+                        ]
                     decoded = json.dumps(event)
                 except (ValueError, TypeError):
                     pass
@@ -362,7 +501,9 @@ class AgentManager:
         finally:
             code = await proc.wait()
             record["exit_code"] = code
-            record["state"] = "STOPPED" if record["state"] == "STOPPING" else ("COMPLETED" if code == 0 else "FAILED")
+            record["state"] = (
+                "STOPPED" if record["state"] == "STOPPING" else ("COMPLETED" if code == 0 else "FAILED")
+            )
             record["controls"] = ["continue"] if record.get("session_id") else []
             record["cpu"], record["memory"] = 0, 0
             self.event("agent.exited", f"{record['name']} exited with code {code}", agent_id)
@@ -371,12 +512,19 @@ class AgentManager:
     def adopt(self, process_id):
         observation = next((r for r in self.observed if r["id"] == process_id), None)
         if not observation or observation["protected"]:
-            raise Rejection("NOT_ADOPTABLE", "Only a currently observed standalone coding-agent process can be adopted")
+            raise Rejection(
+                "NOT_ADOPTABLE", "Only a currently observed standalone coding-agent process can be adopted"
+            )
         proc = self.checked_process(observation)
         if not identify(proc.name(), proc.exe(), proc.cmdline()):
             raise Rejection("PROCESS_CHANGED", "Process is no longer a recognized coding agent")
-        record = {**observation, "source": "adopted process", "logs": [], "note": "Adopted process; output stream is owned by its original terminal",
-                  "controls": ["resume", "stop"] if observation["state"] == "PAUSED" else ["pause", "stop"]}
+        record = {
+            **observation,
+            "source": "adopted process",
+            "logs": [],
+            "note": "Adopted process; output stream is owned by its original terminal",
+            "controls": ["resume", "stop"] if observation["state"] == "PAUSED" else ["pause", "stop"],
+        }
         self.records[process_id] = record
         self.observed = [r for r in self.observed if r["id"] != process_id]
         self.event("agent.adopted", f"Adopted {record['name']} (PID {record['pid']})", process_id)
@@ -390,9 +538,18 @@ class AgentManager:
             return self.adopt(agent_id)
         record = self.records.get(agent_id)
         if not record or action not in record["controls"]:
-            raise Rejection("UNSUPPORTED_CONTROL", "This action is not available for the agent's current state")
+            raise Rejection(
+                "UNSUPPORTED_CONTROL", "This action is not available for the agent's current state"
+            )
         if action == "continue":
-            return await self.launch(record["provider"], record["cwd"], prompt or "", record["name"], record.get("session_id"), record.get("access", "read-only"))
+            return await self.launch(
+                record["provider"],
+                record["cwd"],
+                prompt or "",
+                record["name"],
+                record.get("session_id"),
+                record.get("access", "read-only"),
+            )
         proc = self.checked_process(record)
         if action == "pause":
             paused = []
@@ -412,7 +569,10 @@ class AgentManager:
                         item.resume()
                     except psutil.Error:
                         pass
-                raise Rejection("PAUSE_FAILED", "Could not suspend the entire visible process tree; suspension was rolled back") from None
+                raise Rejection(
+                    "PAUSE_FAILED",
+                    "Could not suspend the entire visible process tree; suspension was rolled back",
+                ) from None
             self.paused[agent_id] = paused
             record["state"], record["controls"] = "PAUSED", ["resume", "stop"]
         elif action in {"resume", "stop"}:
@@ -444,16 +604,32 @@ class AgentManager:
                 if proc.create_time() != record["created"]:
                     raise psutil.NoSuchProcess(proc.pid)
                 for item in [proc, *proc.children(recursive=True)][:100]:
-                    record["process_tree"].append({"pid": item.pid, "name": item.name(), "status": item.status()})
+                    record["process_tree"].append(
+                        {"pid": item.pid, "name": item.name(), "status": item.status()}
+                    )
                     for opened in item.open_files()[:40]:
-                        record["open_files"].append({"path": opened.path, "pid": item.pid, "kind": "open file; lock ownership unknown"})
+                        record["open_files"].append(
+                            {
+                                "path": opened.path,
+                                "pid": item.pid,
+                                "kind": "open file; lock ownership unknown",
+                            }
+                        )
             except psutil.Error as exc:
                 record["inspection_error"] = type(exc).__name__ + ": some process details are unavailable"
         return record
 
     def list(self):
-        owned_session_ids = {r.get("session_id") for r in self.records.values() if r["state"] in {"RUNNING", "PAUSED", "STARTING", "STOPPING"}}
-        return [*self.records.values(), *self.observed, *[s for s in self.bridge.sessions if s["session_id"] not in owned_session_ids]]
+        owned_session_ids = {
+            r.get("session_id")
+            for r in self.records.values()
+            if r["state"] in {"RUNNING", "PAUSED", "STARTING", "STOPPING"}
+        }
+        return [
+            *self.records.values(),
+            *self.observed,
+            *[s for s in self.bridge.sessions if s["session_id"] not in owned_session_ids],
+        ]
 
     async def close(self):
         # Do not strand paused processes when the dashboard exits.
