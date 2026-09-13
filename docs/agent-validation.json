@@ -24,5 +24,13 @@
     "state": "STOPPED",
     "exit_code": -15,
     "visible_tree_stopped": true
+  },
+  {
+    "test": "browser_launch_pause_resume_completion",
+    "provider": "codex",
+    "state": "COMPLETED",
+    "exit_code": 0,
+    "pause_event": true,
+    "resume_event": true
   }
 ]

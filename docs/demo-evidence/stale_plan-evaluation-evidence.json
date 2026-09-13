@@ -1,0 +1,1551 @@
+{
+  "id": "5b0bd48e-4895-4ab0-b523-923aa3372df6",
+  "epoch": "80be534c-0dfd-409d-9019-b0a7d3aeb00e",
+  "scenario": "stale_plan",
+  "seed": 42,
+  "strategy": "live",
+  "auto_recover": true,
+  "mode": "scripted workers / logical resources",
+  "started": 1789311984.918314,
+  "ended": null,
+  "status": "RUNNING",
+  "workers": [
+    {
+      "id": "A",
+      "name": "Analyst A",
+      "kind": "summary",
+      "attempt": "dd5fe702-67a9-4e40-9053-54d7cab80e27",
+      "state": "WAITING",
+      "progress": 24,
+      "total": 60,
+      "computed_total": 2287,
+      "prepared_work": 24,
+      "checkpoint_at": 8,
+      "checkpoint_id": "8e17bb5d-779a-4b27-acaf-85ba1815bd97",
+      "checkpoint_version": 1,
+      "checkpoint_work": 8,
+      "checkpoint_hash": "c4daec686fb0215c56bf5422bf4c8713aad96143c4255b56ab6042a5eede9c06",
+      "version": 26,
+      "request_version": 1,
+      "capability_version": 1,
+      "waiting": "r1",
+      "needs": [
+        "r0",
+        "r1"
+      ],
+      "atomic": false,
+      "last_progress": 1789311991.1699681,
+      "capabilities": [
+        "yield_and_resume",
+        "restart_and_requeue"
+      ]
+    },
+    {
+      "id": "B",
+      "name": "Reporter B",
+      "kind": "report",
+      "attempt": "51947ab2-d333-44ad-8ba0-239955e2985c",
+      "state": "WAITING",
+      "progress": 21,
+      "total": 60,
+      "computed_total": 1968,
+      "prepared_work": 21,
+      "checkpoint_at": 18,
+      "checkpoint_id": "e646eac6-dcb3-4222-a55d-44f5409712b4",
+      "checkpoint_version": 1,
+      "checkpoint_work": 18,
+      "checkpoint_hash": "3d28e9001af4739169aa9dbc3cfbdf5f5f7bd55385f34339cb40bea7d65b4581",
+      "version": 23,
+      "request_version": 1,
+      "capability_version": 1,
+      "waiting": "r2",
+      "needs": [
+        "r1",
+        "r2"
+      ],
+      "atomic": false,
+      "last_progress": 1789311990.612258,
+      "capabilities": [
+        "yield_and_resume",
+        "restart_and_requeue"
+      ]
+    },
+    {
+      "id": "C",
+      "name": "Packager C",
+      "kind": "package",
+      "attempt": "74e5e967-49d6-472b-b92e-30e6e49c91a0",
+      "state": "WAITING",
+      "progress": 18,
+      "total": 60,
+      "computed_total": 1801,
+      "prepared_work": 18,
+      "checkpoint_at": 4,
+      "checkpoint_id": "cde9dba3-beb9-48d8-9c45-899301f8d7c9",
+      "checkpoint_version": 1,
+      "checkpoint_work": 4,
+      "checkpoint_hash": "ad86e7a6884027f1a94e66f2ab287814587e5d0f49a463c00d2838375f730d04",
+      "version": 20,
+      "request_version": 1,
+      "capability_version": 1,
+      "waiting": "r0",
+      "needs": [
+        "r2",
+        "r0"
+      ],
+      "atomic": false,
+      "last_progress": 1789311990.009781,
+      "capabilities": [
+        "yield_and_resume",
+        "restart_and_requeue"
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "id": "r0",
+      "name": "Dataset session",
+      "owner": "A",
+      "version": 1,
+      "capacity": 1,
+      "exclusive": true
+    },
+    {
+      "id": "r1",
+      "name": "Renderer slot",
+      "owner": "B",
+      "version": 2,
+      "capacity": 1,
+      "exclusive": true
+    },
+    {
+      "id": "r2",
+      "name": "Artifact slot",
+      "owner": "C",
+      "version": 1,
+      "capacity": 1,
+      "exclusive": true
+    }
+  ],
+  "incident": {
+    "id": "e2b449b4-2f5b-40d2-88a9-cc193f6bbcd5",
+    "key": "A\u2192B\u2192C",
+    "members": [
+      "A",
+      "B",
+      "C"
+    ],
+    "resources": [
+      "r1",
+      "r2",
+      "r0"
+    ],
+    "snapshot_id": "4a997237-550e-48c1-90be-aee21d12f54e",
+    "first_seen": 1789311992.340151,
+    "status": "UNRESOLVED",
+    "detected": 1789311993.886718,
+    "ended": 1789312053.921401,
+    "attempts": 1,
+    "tool_calls": 6,
+    "trace": [
+      {
+        "time": 1789311994.781837,
+        "tool": "inspect_incident",
+        "arguments": {
+          "incident_id": "e2b449b4-2f5b-40d2-88a9-cc193f6bbcd5"
+        },
+        "result": {
+          "cycle": "A\u2192B\u2192C",
+          "members": [
+            "A",
+            "B",
+            "C"
+          ],
+          "snapshot_id": "4a997237-550e-48c1-90be-aee21d12f54e",
+          "candidates": [
+            {
+              "worker_id": "B",
+              "operation": "yield_and_resume",
+              "checkpoint_id": "e646eac6-dcb3-4222-a55d-44f5409712b4",
+              "lost_work": 3,
+              "version": 1,
+              "checkpoint_work": 18,
+              "attempt": "51947ab2-d333-44ad-8ba0-239955e2985c",
+              "id": "4a997237-550e-48c1-90be-aee21d12f54e:B:yield_and_resume",
+              "snapshot_id": "4a997237-550e-48c1-90be-aee21d12f54e",
+              "evidence_id": "candidate:B:yield_and_resume"
+            },
+            {
+              "worker_id": "C",
+              "operation": "yield_and_resume",
+              "checkpoint_id": "cde9dba3-beb9-48d8-9c45-899301f8d7c9",
+              "lost_work": 14,
+              "version": 1,
+              "checkpoint_work": 4,
+              "attempt": "74e5e967-49d6-472b-b92e-30e6e49c91a0",
+              "id": "4a997237-550e-48c1-90be-aee21d12f54e:C:yield_and_resume",
+              "snapshot_id": "4a997237-550e-48c1-90be-aee21d12f54e",
+              "evidence_id": "candidate:C:yield_and_resume"
+            },
+            {
+              "worker_id": "A",
+              "operation": "yield_and_resume",
+              "checkpoint_id": "8e17bb5d-779a-4b27-acaf-85ba1815bd97",
+              "lost_work": 16,
+              "version": 1,
+              "checkpoint_work": 8,
+              "attempt": "dd5fe702-67a9-4e40-9053-54d7cab80e27",
+              "id": "4a997237-550e-48c1-90be-aee21d12f54e:A:yield_and_resume",
+              "snapshot_id": "4a997237-550e-48c1-90be-aee21d12f54e",
+              "evidence_id": "candidate:A:yield_and_resume"
+            },
+            {
+              "worker_id": "C",
+              "operation": "restart_and_requeue",
+              "checkpoint_id": null,
+              "lost_work": 18,
+              "version": 1,
+              "checkpoint_work": 4,
+              "attempt": "74e5e967-49d6-472b-b92e-30e6e49c91a0",
+              "id": "4a997237-550e-48c1-90be-aee21d12f54e:C:restart_and_requeue",
+              "snapshot_id": "4a997237-550e-48c1-90be-aee21d12f54e",
+              "evidence_id": "candidate:C:restart_and_requeue"
+            },
+            {
+              "worker_id": "B",
+              "operation": "restart_and_requeue",
+              "checkpoint_id": null,
+              "lost_work": 21,
+              "version": 1,
+              "checkpoint_work": 18,
+              "attempt": "51947ab2-d333-44ad-8ba0-239955e2985c",
+              "id": "4a997237-550e-48c1-90be-aee21d12f54e:B:restart_and_requeue",
+              "snapshot_id": "4a997237-550e-48c1-90be-aee21d12f54e",
+              "evidence_id": "candidate:B:restart_and_requeue"
+            },
+            {
+              "worker_id": "A",
+              "operation": "restart_and_requeue",
+              "checkpoint_id": null,
+              "lost_work": 24,
+              "version": 1,
+              "checkpoint_work": 8,
+              "attempt": "dd5fe702-67a9-4e40-9053-54d7cab80e27",
+              "id": "4a997237-550e-48c1-90be-aee21d12f54e:A:restart_and_requeue",
+              "snapshot_id": "4a997237-550e-48c1-90be-aee21d12f54e",
+              "evidence_id": "candidate:A:restart_and_requeue"
+            }
+          ]
+        }
+      },
+      {
+        "time": 1789312011.094599,
+        "tool": "inspect_candidate",
+        "arguments": {
+          "candidate_id": "4a997237-550e-48c1-90be-aee21d12f54e:B:yield_and_resume"
+        },
+        "result": {
+          "worker_id": "B",
+          "operation": "yield_and_resume",
+          "checkpoint_id": "e646eac6-dcb3-4222-a55d-44f5409712b4",
+          "lost_work": 3,
+          "version": 1,
+          "checkpoint_work": 18,
+          "attempt": "51947ab2-d333-44ad-8ba0-239955e2985c",
+          "id": "4a997237-550e-48c1-90be-aee21d12f54e:B:yield_and_resume",
+          "snapshot_id": "4a997237-550e-48c1-90be-aee21d12f54e",
+          "evidence_id": "candidate:B:yield_and_resume"
+        }
+      },
+      {
+        "time": 1789312023.748396,
+        "tool": "propose_recovery",
+        "arguments": {
+          "candidate_id": "4a997237-550e-48c1-90be-aee21d12f54e:B:yield_and_resume",
+          "rationale": "Already inspected; candidate:B:yield_and_resume has the minimum lost_work of 3 among supplied candidates."
+        },
+        "result": {
+          "plan_id": "7b3a2623-4601-49c5-bf81-95017786e673"
+        }
+      },
+      {
+        "time": 1789312023.7485561,
+        "tool": "execute_recovery",
+        "arguments": {
+          "plan_id": "7b3a2623-4601-49c5-bf81-95017786e673"
+        },
+        "result": {
+          "rejected": "STALE_PLAN",
+          "reason": "Relevant ownership, request, checkpoint, or capability changed"
+        }
+      },
+      {
+        "time": 1789312023.837756,
+        "tool": "list_recovery_candidates",
+        "arguments": {},
+        "result": [
+          {
+            "worker_id": "B",
+            "operation": "yield_and_resume",
+            "checkpoint_id": "e646eac6-dcb3-4222-a55d-44f5409712b4",
+            "lost_work": 3,
+            "version": 1,
+            "checkpoint_work": 18,
+            "attempt": "51947ab2-d333-44ad-8ba0-239955e2985c",
+            "id": "81839064-fa56-4568-bc28-2f84e85f1b6a:B:yield_and_resume",
+            "snapshot_id": "81839064-fa56-4568-bc28-2f84e85f1b6a",
+            "evidence_id": "candidate:B:yield_and_resume"
+          },
+          {
+            "worker_id": "C",
+            "operation": "yield_and_resume",
+            "checkpoint_id": "cde9dba3-beb9-48d8-9c45-899301f8d7c9",
+            "lost_work": 14,
+            "version": 1,
+            "checkpoint_work": 4,
+            "attempt": "74e5e967-49d6-472b-b92e-30e6e49c91a0",
+            "id": "81839064-fa56-4568-bc28-2f84e85f1b6a:C:yield_and_resume",
+            "snapshot_id": "81839064-fa56-4568-bc28-2f84e85f1b6a",
+            "evidence_id": "candidate:C:yield_and_resume"
+          },
+          {
+            "worker_id": "A",
+            "operation": "yield_and_resume",
+            "checkpoint_id": "8e17bb5d-779a-4b27-acaf-85ba1815bd97",
+            "lost_work": 16,
+            "version": 1,
+            "checkpoint_work": 8,
+            "attempt": "dd5fe702-67a9-4e40-9053-54d7cab80e27",
+            "id": "81839064-fa56-4568-bc28-2f84e85f1b6a:A:yield_and_resume",
+            "snapshot_id": "81839064-fa56-4568-bc28-2f84e85f1b6a",
+            "evidence_id": "candidate:A:yield_and_resume"
+          },
+          {
+            "worker_id": "C",
+            "operation": "restart_and_requeue",
+            "checkpoint_id": null,
+            "lost_work": 18,
+            "version": 1,
+            "checkpoint_work": 4,
+            "attempt": "74e5e967-49d6-472b-b92e-30e6e49c91a0",
+            "id": "81839064-fa56-4568-bc28-2f84e85f1b6a:C:restart_and_requeue",
+            "snapshot_id": "81839064-fa56-4568-bc28-2f84e85f1b6a",
+            "evidence_id": "candidate:C:restart_and_requeue"
+          },
+          {
+            "worker_id": "B",
+            "operation": "restart_and_requeue",
+            "checkpoint_id": null,
+            "lost_work": 21,
+            "version": 1,
+            "checkpoint_work": 18,
+            "attempt": "51947ab2-d333-44ad-8ba0-239955e2985c",
+            "id": "81839064-fa56-4568-bc28-2f84e85f1b6a:B:restart_and_requeue",
+            "snapshot_id": "81839064-fa56-4568-bc28-2f84e85f1b6a",
+            "evidence_id": "candidate:B:restart_and_requeue"
+          },
+          {
+            "worker_id": "A",
+            "operation": "restart_and_requeue",
+            "checkpoint_id": null,
+            "lost_work": 24,
+            "version": 1,
+            "checkpoint_work": 8,
+            "attempt": "dd5fe702-67a9-4e40-9053-54d7cab80e27",
+            "id": "81839064-fa56-4568-bc28-2f84e85f1b6a:A:restart_and_requeue",
+            "snapshot_id": "81839064-fa56-4568-bc28-2f84e85f1b6a",
+            "evidence_id": "candidate:A:restart_and_requeue"
+          }
+        ]
+      },
+      {
+        "time": 1789312050.333177,
+        "tool": "inspect_candidate",
+        "arguments": {
+          "candidate_id": "81839064-fa56-4568-bc28-2f84e85f1b6a:B:yield_and_resume"
+        },
+        "result": {
+          "worker_id": "B",
+          "operation": "yield_and_resume",
+          "checkpoint_id": "e646eac6-dcb3-4222-a55d-44f5409712b4",
+          "lost_work": 3,
+          "version": 1,
+          "checkpoint_work": 18,
+          "attempt": "51947ab2-d333-44ad-8ba0-239955e2985c",
+          "id": "81839064-fa56-4568-bc28-2f84e85f1b6a:B:yield_and_resume",
+          "snapshot_id": "81839064-fa56-4568-bc28-2f84e85f1b6a",
+          "evidence_id": "candidate:B:yield_and_resume"
+        }
+      }
+    ],
+    "plan": {
+      "id": "7b3a2623-4601-49c5-bf81-95017786e673",
+      "run_id": "5b0bd48e-4895-4ab0-b523-923aa3372df6",
+      "epoch": "80be534c-0dfd-409d-9019-b0a7d3aeb00e",
+      "incident_id": "e2b449b4-2f5b-40d2-88a9-cc193f6bbcd5",
+      "candidate": {
+        "worker_id": "B",
+        "operation": "yield_and_resume",
+        "checkpoint_id": "e646eac6-dcb3-4222-a55d-44f5409712b4",
+        "lost_work": 3,
+        "version": 1,
+        "checkpoint_work": 18,
+        "attempt": "51947ab2-d333-44ad-8ba0-239955e2985c",
+        "id": "4a997237-550e-48c1-90be-aee21d12f54e:B:yield_and_resume",
+        "snapshot_id": "4a997237-550e-48c1-90be-aee21d12f54e",
+        "evidence_id": "candidate:B:yield_and_resume"
+      },
+      "scope": {
+        "workers": [
+          {
+            "id": "A",
+            "attempt": "dd5fe702-67a9-4e40-9053-54d7cab80e27",
+            "version": 26,
+            "request_version": 1,
+            "capability_version": 1,
+            "checkpoint_id": "8e17bb5d-779a-4b27-acaf-85ba1815bd97",
+            "checkpoint_version": 1,
+            "checkpoint_hash": "c4daec686fb0215c56bf5422bf4c8713aad96143c4255b56ab6042a5eede9c06"
+          },
+          {
+            "id": "B",
+            "attempt": "51947ab2-d333-44ad-8ba0-239955e2985c",
+            "version": 23,
+            "request_version": 1,
+            "capability_version": 1,
+            "checkpoint_id": "e646eac6-dcb3-4222-a55d-44f5409712b4",
+            "checkpoint_version": 1,
+            "checkpoint_hash": "3d28e9001af4739169aa9dbc3cfbdf5f5f7bd55385f34339cb40bea7d65b4581"
+          },
+          {
+            "id": "C",
+            "attempt": "74e5e967-49d6-472b-b92e-30e6e49c91a0",
+            "version": 20,
+            "request_version": 1,
+            "capability_version": 1,
+            "checkpoint_id": "cde9dba3-beb9-48d8-9c45-899301f8d7c9",
+            "checkpoint_version": 1,
+            "checkpoint_hash": "ad86e7a6884027f1a94e66f2ab287814587e5d0f49a463c00d2838375f730d04"
+          }
+        ],
+        "resources": [
+          {
+            "id": "r0",
+            "owner": "A",
+            "version": 1,
+            "capacity": 1,
+            "exclusive": true
+          },
+          {
+            "id": "r1",
+            "owner": "B",
+            "version": 1,
+            "capacity": 1,
+            "exclusive": true
+          },
+          {
+            "id": "r2",
+            "owner": "C",
+            "version": 1,
+            "capacity": 1,
+            "exclusive": true
+          }
+        ]
+      },
+      "evidence_ids": [
+        "candidate:B:yield_and_resume"
+      ],
+      "rationale": "Already inspected; candidate:B:yield_and_resume has the minimum lost_work of 3 among supplied candidates.",
+      "created": 1789312023.7483048
+    },
+    "verification": null,
+    "reason": "TimeoutError",
+    "model": "gpt-6-astra",
+    "model_latency_ms": 56702,
+    "model_calls": 4
+  },
+  "artifacts": [],
+  "events": [
+    {
+      "seq": 1,
+      "time": 1789311984.918682,
+      "type": "run.started",
+      "message": "Started Ownership changes after planning",
+      "strategy": "live",
+      "seed": 42
+    },
+    {
+      "seq": 2,
+      "time": 1789311984.9190679,
+      "type": "resource.acquired",
+      "message": "Analyst A acquired Dataset session",
+      "worker_id": "A",
+      "resource_id": "r0"
+    },
+    {
+      "seq": 3,
+      "time": 1789311984.9192681,
+      "type": "resource.acquired",
+      "message": "Reporter B acquired Renderer slot",
+      "worker_id": "B",
+      "resource_id": "r1"
+    },
+    {
+      "seq": 4,
+      "time": 1789311984.919348,
+      "type": "resource.acquired",
+      "message": "Packager C acquired Artifact slot",
+      "worker_id": "C",
+      "resource_id": "r2"
+    },
+    {
+      "seq": 5,
+      "time": 1789311985.98018,
+      "type": "checkpoint.saved",
+      "message": "Packager C checkpointed 4 work units",
+      "worker_id": "C"
+    },
+    {
+      "seq": 6,
+      "time": 1789311987.009213,
+      "type": "checkpoint.saved",
+      "message": "Analyst A checkpointed 8 work units",
+      "worker_id": "A"
+    },
+    {
+      "seq": 7,
+      "time": 1789311990.0094001,
+      "type": "checkpoint.saved",
+      "message": "Reporter B checkpointed 18 work units",
+      "worker_id": "B"
+    },
+    {
+      "seq": 8,
+      "time": 1789311992.046405,
+      "type": "barrier.open",
+      "message": "All workers hold their first resource; requesting the next resource"
+    },
+    {
+      "seq": 9,
+      "time": 1789311992.046742,
+      "type": "resource.wait",
+      "message": "Analyst A is waiting for Renderer slot",
+      "worker_id": "A"
+    },
+    {
+      "seq": 10,
+      "time": 1789311992.04684,
+      "type": "resource.wait",
+      "message": "Reporter B is waiting for Artifact slot",
+      "worker_id": "B"
+    },
+    {
+      "seq": 11,
+      "time": 1789311992.046911,
+      "type": "resource.wait",
+      "message": "Packager C is waiting for Dataset session",
+      "worker_id": "C"
+    },
+    {
+      "seq": 12,
+      "time": 1789311994.7314649,
+      "type": "incident.detected",
+      "message": "Persistent resource cycle detected: A\u2192B\u2192C",
+      "snapshot_id": "4a997237-550e-48c1-90be-aee21d12f54e"
+    },
+    {
+      "seq": 13,
+      "time": 1789311994.7818491,
+      "type": "mediator.tool",
+      "message": "inspect_incident",
+      "tool": "inspect_incident",
+      "arguments": {
+        "incident_id": "e2b449b4-2f5b-40d2-88a9-cc193f6bbcd5"
+      },
+      "result": {
+        "cycle": "A\u2192B\u2192C",
+        "members": [
+          "A",
+          "B",
+          "C"
+        ],
+        "snapshot_id": "4a997237-550e-48c1-90be-aee21d12f54e",
+        "candidates": [
+          {
+            "worker_id": "B",
+            "operation": "yield_and_resume",
+            "checkpoint_id": "e646eac6-dcb3-4222-a55d-44f5409712b4",
+            "lost_work": 3,
+            "version": 1,
+            "checkpoint_work": 18,
+            "attempt": "51947ab2-d333-44ad-8ba0-239955e2985c",
+            "id": "4a997237-550e-48c1-90be-aee21d12f54e:B:yield_and_resume",
+            "snapshot_id": "4a997237-550e-48c1-90be-aee21d12f54e",
+            "evidence_id": "candidate:B:yield_and_resume"
+          },
+          {
+            "worker_id": "C",
+            "operation": "yield_and_resume",
+            "checkpoint_id": "cde9dba3-beb9-48d8-9c45-899301f8d7c9",
+            "lost_work": 14,
+            "version": 1,
+            "checkpoint_work": 4,
+            "attempt": "74e5e967-49d6-472b-b92e-30e6e49c91a0",
+            "id": "4a997237-550e-48c1-90be-aee21d12f54e:C:yield_and_resume",
+            "snapshot_id": "4a997237-550e-48c1-90be-aee21d12f54e",
+            "evidence_id": "candidate:C:yield_and_resume"
+          },
+          {
+            "worker_id": "A",
+            "operation": "yield_and_resume",
+            "checkpoint_id": "8e17bb5d-779a-4b27-acaf-85ba1815bd97",
+            "lost_work": 16,
+            "version": 1,
+            "checkpoint_work": 8,
+            "attempt": "dd5fe702-67a9-4e40-9053-54d7cab80e27",
+            "id": "4a997237-550e-48c1-90be-aee21d12f54e:A:yield_and_resume",
+            "snapshot_id": "4a997237-550e-48c1-90be-aee21d12f54e",
+            "evidence_id": "candidate:A:yield_and_resume"
+          },
+          {
+            "worker_id": "C",
+            "operation": "restart_and_requeue",
+            "checkpoint_id": null,
+            "lost_work": 18,
+            "version": 1,
+            "checkpoint_work": 4,
+            "attempt": "74e5e967-49d6-472b-b92e-30e6e49c91a0",
+            "id": "4a997237-550e-48c1-90be-aee21d12f54e:C:restart_and_requeue",
+            "snapshot_id": "4a997237-550e-48c1-90be-aee21d12f54e",
+            "evidence_id": "candidate:C:restart_and_requeue"
+          },
+          {
+            "worker_id": "B",
+            "operation": "restart_and_requeue",
+            "checkpoint_id": null,
+            "lost_work": 21,
+            "version": 1,
+            "checkpoint_work": 18,
+            "attempt": "51947ab2-d333-44ad-8ba0-239955e2985c",
+            "id": "4a997237-550e-48c1-90be-aee21d12f54e:B:restart_and_requeue",
+            "snapshot_id": "4a997237-550e-48c1-90be-aee21d12f54e",
+            "evidence_id": "candidate:B:restart_and_requeue"
+          },
+          {
+            "worker_id": "A",
+            "operation": "restart_and_requeue",
+            "checkpoint_id": null,
+            "lost_work": 24,
+            "version": 1,
+            "checkpoint_work": 8,
+            "attempt": "dd5fe702-67a9-4e40-9053-54d7cab80e27",
+            "id": "4a997237-550e-48c1-90be-aee21d12f54e:A:restart_and_requeue",
+            "snapshot_id": "4a997237-550e-48c1-90be-aee21d12f54e",
+            "evidence_id": "candidate:A:restart_and_requeue"
+          }
+        ]
+      }
+    },
+    {
+      "seq": 14,
+      "time": 1789311994.782264,
+      "type": "model.requested",
+      "message": "Requested a live mediator decision",
+      "provider": "codex"
+    },
+    {
+      "seq": 15,
+      "time": 1789312011.094221,
+      "type": "model.responded",
+      "message": "Received a live mediator tool request",
+      "model": "gpt-6-astra",
+      "decision": {
+        "tool": "inspect_candidate",
+        "candidate_id": "4a997237-550e-48c1-90be-aee21d12f54e:B:yield_and_resume",
+        "rationale": "candidate:B:yield_and_resume has the minimum lost_work of 3 and must be inspected before proposal.",
+        "evidence_ids": [
+          "candidate:B:yield_and_resume"
+        ]
+      }
+    },
+    {
+      "seq": 16,
+      "time": 1789312011.094603,
+      "type": "mediator.tool",
+      "message": "inspect_candidate",
+      "tool": "inspect_candidate",
+      "arguments": {
+        "candidate_id": "4a997237-550e-48c1-90be-aee21d12f54e:B:yield_and_resume"
+      },
+      "result": {
+        "worker_id": "B",
+        "operation": "yield_and_resume",
+        "checkpoint_id": "e646eac6-dcb3-4222-a55d-44f5409712b4",
+        "lost_work": 3,
+        "version": 1,
+        "checkpoint_work": 18,
+        "attempt": "51947ab2-d333-44ad-8ba0-239955e2985c",
+        "id": "4a997237-550e-48c1-90be-aee21d12f54e:B:yield_and_resume",
+        "snapshot_id": "4a997237-550e-48c1-90be-aee21d12f54e",
+        "evidence_id": "candidate:B:yield_and_resume"
+      }
+    },
+    {
+      "seq": 17,
+      "time": 1789312011.094812,
+      "type": "model.requested",
+      "message": "Requested a live mediator decision",
+      "provider": "codex"
+    },
+    {
+      "seq": 18,
+      "time": 1789312023.747902,
+      "type": "model.responded",
+      "message": "Received a live mediator tool request",
+      "model": "gpt-6-astra",
+      "decision": {
+        "tool": "propose_recovery",
+        "candidate_id": "4a997237-550e-48c1-90be-aee21d12f54e:B:yield_and_resume",
+        "rationale": "Already inspected; candidate:B:yield_and_resume has the minimum lost_work of 3 among supplied candidates.",
+        "evidence_ids": [
+          "candidate:B:yield_and_resume"
+        ]
+      }
+    },
+    {
+      "seq": 19,
+      "time": 1789312023.748311,
+      "type": "plan.proposed",
+      "message": "Proposed yield_and_resume for B",
+      "plan_id": "7b3a2623-4601-49c5-bf81-95017786e673",
+      "rationale": "Already inspected; candidate:B:yield_and_resume has the minimum lost_work of 3 among supplied candidates."
+    },
+    {
+      "seq": 20,
+      "time": 1789312023.7484002,
+      "type": "mediator.tool",
+      "message": "propose_recovery",
+      "tool": "propose_recovery",
+      "arguments": {
+        "candidate_id": "4a997237-550e-48c1-90be-aee21d12f54e:B:yield_and_resume",
+        "rationale": "Already inspected; candidate:B:yield_and_resume has the minimum lost_work of 3 among supplied candidates."
+      },
+      "result": {
+        "plan_id": "7b3a2623-4601-49c5-bf81-95017786e673"
+      }
+    },
+    {
+      "seq": 21,
+      "time": 1789312023.748558,
+      "type": "mediator.tool",
+      "message": "execute_recovery",
+      "tool": "execute_recovery",
+      "arguments": {
+        "plan_id": "7b3a2623-4601-49c5-bf81-95017786e673"
+      },
+      "result": {
+        "rejected": "STALE_PLAN",
+        "reason": "Relevant ownership, request, checkpoint, or capability changed"
+      }
+    },
+    {
+      "seq": 22,
+      "time": 1789312023.837758,
+      "type": "mediator.tool",
+      "message": "list_recovery_candidates",
+      "tool": "list_recovery_candidates",
+      "arguments": {},
+      "result": [
+        {
+          "worker_id": "B",
+          "operation": "yield_and_resume",
+          "checkpoint_id": "e646eac6-dcb3-4222-a55d-44f5409712b4",
+          "lost_work": 3,
+          "version": 1,
+          "checkpoint_work": 18,
+          "attempt": "51947ab2-d333-44ad-8ba0-239955e2985c",
+          "id": "81839064-fa56-4568-bc28-2f84e85f1b6a:B:yield_and_resume",
+          "snapshot_id": "81839064-fa56-4568-bc28-2f84e85f1b6a",
+          "evidence_id": "candidate:B:yield_and_resume"
+        },
+        {
+          "worker_id": "C",
+          "operation": "yield_and_resume",
+          "checkpoint_id": "cde9dba3-beb9-48d8-9c45-899301f8d7c9",
+          "lost_work": 14,
+          "version": 1,
+          "checkpoint_work": 4,
+          "attempt": "74e5e967-49d6-472b-b92e-30e6e49c91a0",
+          "id": "81839064-fa56-4568-bc28-2f84e85f1b6a:C:yield_and_resume",
+          "snapshot_id": "81839064-fa56-4568-bc28-2f84e85f1b6a",
+          "evidence_id": "candidate:C:yield_and_resume"
+        },
+        {
+          "worker_id": "A",
+          "operation": "yield_and_resume",
+          "checkpoint_id": "8e17bb5d-779a-4b27-acaf-85ba1815bd97",
+          "lost_work": 16,
+          "version": 1,
+          "checkpoint_work": 8,
+          "attempt": "dd5fe702-67a9-4e40-9053-54d7cab80e27",
+          "id": "81839064-fa56-4568-bc28-2f84e85f1b6a:A:yield_and_resume",
+          "snapshot_id": "81839064-fa56-4568-bc28-2f84e85f1b6a",
+          "evidence_id": "candidate:A:yield_and_resume"
+        },
+        {
+          "worker_id": "C",
+          "operation": "restart_and_requeue",
+          "checkpoint_id": null,
+          "lost_work": 18,
+          "version": 1,
+          "checkpoint_work": 4,
+          "attempt": "74e5e967-49d6-472b-b92e-30e6e49c91a0",
+          "id": "81839064-fa56-4568-bc28-2f84e85f1b6a:C:restart_and_requeue",
+          "snapshot_id": "81839064-fa56-4568-bc28-2f84e85f1b6a",
+          "evidence_id": "candidate:C:restart_and_requeue"
+        },
+        {
+          "worker_id": "B",
+          "operation": "restart_and_requeue",
+          "checkpoint_id": null,
+          "lost_work": 21,
+          "version": 1,
+          "checkpoint_work": 18,
+          "attempt": "51947ab2-d333-44ad-8ba0-239955e2985c",
+          "id": "81839064-fa56-4568-bc28-2f84e85f1b6a:B:restart_and_requeue",
+          "snapshot_id": "81839064-fa56-4568-bc28-2f84e85f1b6a",
+          "evidence_id": "candidate:B:restart_and_requeue"
+        },
+        {
+          "worker_id": "A",
+          "operation": "restart_and_requeue",
+          "checkpoint_id": null,
+          "lost_work": 24,
+          "version": 1,
+          "checkpoint_work": 8,
+          "attempt": "dd5fe702-67a9-4e40-9053-54d7cab80e27",
+          "id": "81839064-fa56-4568-bc28-2f84e85f1b6a:A:restart_and_requeue",
+          "snapshot_id": "81839064-fa56-4568-bc28-2f84e85f1b6a",
+          "evidence_id": "candidate:A:restart_and_requeue"
+        }
+      ]
+    },
+    {
+      "seq": 23,
+      "time": 1789312023.838062,
+      "type": "model.requested",
+      "message": "Requested a live mediator decision",
+      "provider": "codex"
+    },
+    {
+      "seq": 24,
+      "time": 1789312050.33138,
+      "type": "model.responded",
+      "message": "Received a live mediator tool request",
+      "model": "gpt-6-astra",
+      "decision": {
+        "tool": "inspect_candidate",
+        "candidate_id": "81839064-fa56-4568-bc28-2f84e85f1b6a:B:yield_and_resume",
+        "rationale": "candidate:B:yield_and_resume has the minimum lost_work of 3. This candidate has not been inspected; the inspected ID belongs to a different snapshot.",
+        "evidence_ids": [
+          "candidate:B:yield_and_resume"
+        ]
+      }
+    },
+    {
+      "seq": 25,
+      "time": 1789312050.333183,
+      "type": "mediator.tool",
+      "message": "inspect_candidate",
+      "tool": "inspect_candidate",
+      "arguments": {
+        "candidate_id": "81839064-fa56-4568-bc28-2f84e85f1b6a:B:yield_and_resume"
+      },
+      "result": {
+        "worker_id": "B",
+        "operation": "yield_and_resume",
+        "checkpoint_id": "e646eac6-dcb3-4222-a55d-44f5409712b4",
+        "lost_work": 3,
+        "version": 1,
+        "checkpoint_work": 18,
+        "attempt": "51947ab2-d333-44ad-8ba0-239955e2985c",
+        "id": "81839064-fa56-4568-bc28-2f84e85f1b6a:B:yield_and_resume",
+        "snapshot_id": "81839064-fa56-4568-bc28-2f84e85f1b6a",
+        "evidence_id": "candidate:B:yield_and_resume"
+      }
+    },
+    {
+      "seq": 26,
+      "time": 1789312050.3334348,
+      "type": "model.requested",
+      "message": "Requested a live mediator decision",
+      "provider": "codex"
+    },
+    {
+      "seq": 27,
+      "time": 1789312053.921412,
+      "type": "incident.unresolved",
+      "message": "TimeoutError"
+    }
+  ],
+  "event_count": 27,
+  "evidence_gap": false,
+  "discarded_work": 0,
+  "preserved_work": 0,
+  "barrier_open": true,
+  "config": {
+    "persistence_seconds": 2.0,
+    "freshness_seconds": 2.0,
+    "incident_budget_seconds": 60.0,
+    "sql_engine": "exasol",
+    "mediator": "codex",
+    "mediator_reasoning_effort": "low"
+  },
+  "failure_injected": true,
+  "snapshots": {
+    "latest": {
+      "id": "73fb83c4-0019-4a99-95cd-6c695e8fd51a",
+      "run_id": "5b0bd48e-4895-4ab0-b523-923aa3372df6",
+      "epoch": "80be534c-0dfd-409d-9019-b0a7d3aeb00e",
+      "captured": 1789312054.115394,
+      "workers": [
+        {
+          "id": "A",
+          "name": "Analyst A",
+          "kind": "summary",
+          "attempt": "dd5fe702-67a9-4e40-9053-54d7cab80e27",
+          "state": "WAITING",
+          "progress": 24,
+          "total": 60,
+          "computed_total": 2287,
+          "prepared_work": 24,
+          "checkpoint_at": 8,
+          "checkpoint_id": "8e17bb5d-779a-4b27-acaf-85ba1815bd97",
+          "checkpoint_version": 1,
+          "checkpoint_work": 8,
+          "checkpoint_hash": "c4daec686fb0215c56bf5422bf4c8713aad96143c4255b56ab6042a5eede9c06",
+          "version": 26,
+          "request_version": 1,
+          "capability_version": 1,
+          "waiting": "r1",
+          "needs": [
+            "r0",
+            "r1"
+          ],
+          "atomic": false,
+          "last_progress": 1789311991.1699681,
+          "capabilities": [
+            "yield_and_resume",
+            "restart_and_requeue"
+          ]
+        },
+        {
+          "id": "B",
+          "name": "Reporter B",
+          "kind": "report",
+          "attempt": "51947ab2-d333-44ad-8ba0-239955e2985c",
+          "state": "WAITING",
+          "progress": 21,
+          "total": 60,
+          "computed_total": 1968,
+          "prepared_work": 21,
+          "checkpoint_at": 18,
+          "checkpoint_id": "e646eac6-dcb3-4222-a55d-44f5409712b4",
+          "checkpoint_version": 1,
+          "checkpoint_work": 18,
+          "checkpoint_hash": "3d28e9001af4739169aa9dbc3cfbdf5f5f7bd55385f34339cb40bea7d65b4581",
+          "version": 23,
+          "request_version": 1,
+          "capability_version": 1,
+          "waiting": "r2",
+          "needs": [
+            "r1",
+            "r2"
+          ],
+          "atomic": false,
+          "last_progress": 1789311990.612258,
+          "capabilities": [
+            "yield_and_resume",
+            "restart_and_requeue"
+          ]
+        },
+        {
+          "id": "C",
+          "name": "Packager C",
+          "kind": "package",
+          "attempt": "74e5e967-49d6-472b-b92e-30e6e49c91a0",
+          "state": "WAITING",
+          "progress": 18,
+          "total": 60,
+          "computed_total": 1801,
+          "prepared_work": 18,
+          "checkpoint_at": 4,
+          "checkpoint_id": "cde9dba3-beb9-48d8-9c45-899301f8d7c9",
+          "checkpoint_version": 1,
+          "checkpoint_work": 4,
+          "checkpoint_hash": "ad86e7a6884027f1a94e66f2ab287814587e5d0f49a463c00d2838375f730d04",
+          "version": 20,
+          "request_version": 1,
+          "capability_version": 1,
+          "waiting": "r0",
+          "needs": [
+            "r2",
+            "r0"
+          ],
+          "atomic": false,
+          "last_progress": 1789311990.009781,
+          "capabilities": [
+            "yield_and_resume",
+            "restart_and_requeue"
+          ]
+        }
+      ],
+      "resources": [
+        {
+          "id": "r0",
+          "name": "Dataset session",
+          "owner": "A",
+          "version": 1,
+          "capacity": 1,
+          "exclusive": true
+        },
+        {
+          "id": "r1",
+          "name": "Renderer slot",
+          "owner": "B",
+          "version": 2,
+          "capacity": 1,
+          "exclusive": true
+        },
+        {
+          "id": "r2",
+          "name": "Artifact slot",
+          "owner": "C",
+          "version": 1,
+          "capacity": 1,
+          "exclusive": true
+        }
+      ]
+    },
+    "pending_count": 0
+  },
+  "queries": [
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "5f556728-d9c2-4443-960e-ca846a561d59",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 134.361
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "69d2362c-3997-4953-a8be-2d3edb3e660a",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 95.459
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "152d494d-4eaf-4d1b-9d9a-bc876b5182c9",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 58.346
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "8941c1de-a5ab-48a5-b724-6c0cfe826f78",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 156.804
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "4c935e80-b8dd-4101-ae3b-0e52828a48de",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 261.392
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "6a87f8d8-a63b-4101-9113-6be139122cc9",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 124.291
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "dd7472e2-4bd0-4e83-b337-6090f00567cd",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 118.447
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "70a676d4-28f7-4ee5-ac0c-1b5348ac1e5c",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 103.84
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "7a5654b8-1067-4814-b758-fe278309077c",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 82.737
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "42e5a786-ce14-4a4a-836c-c2fc2683db34",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 131.149
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "c48e1149-6c70-4a9c-87dc-dbc7f87c6eee",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 119.941
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "7b9f9153-18b1-46fe-90e3-d32d187b9535",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 311.723
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "5d8e8454-762e-49f7-b75b-9ded810832e7",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 173.55
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "2c2a136b-18a8-4802-ba80-cad3b449ae9e",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 72.011
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "ec504fd0-6bb4-40f7-b628-678a3894041b",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 88.754
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "a6c33f4b-675b-4ebc-bb18-ffc6293d9daf",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 135.636
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "1bb4bcda-f5d9-4f1f-acfc-fdae92e26a94",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 88.69
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "b98c435c-2302-4319-9e65-a1f4ac5b39f3",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 106.333
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "42bedf4f-3b82-4d63-9886-808ac9db67ae",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 60.827
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "e0005202-c891-48a5-87e5-3f6b423e72f7",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 107.647
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "d446bc21-3b9f-452b-9bee-588edb832a49",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 104.306
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "c3f797a9-5e2b-4ec2-b929-209d3e3fcf43",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 83.814
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "f68ba9fe-4dfa-4254-8313-ae5acca95c3d",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 154.604
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "70f0ac2b-70c0-49de-9fe7-19b40f098237",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 242.561
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "3d25c227-49c1-4fee-96dd-bc66c90ce796",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 302.908
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "b5aa0dc5-63d3-46b2-b603-c4dbd91a1c12",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 225.794
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "776beb27-d570-4646-bd73-26546b14a09c",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 167.949
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "aa6a6253-b6ba-4023-a1e4-0905a94df74e",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 87.561
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "10a7e5c5-9075-41ee-9d05-88ec71f48233",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 93.078
+    },
+    {
+      "file": "cycles.sql",
+      "engine": "exasol",
+      "sql": "WITH edges AS (\n    SELECT q.worker_id AS waiter, r.owner AS holder, r.id AS resource_id\n    FROM waits q\n    JOIN resources r ON r.snapshot_id=q.snapshot_id AND r.run_id=q.run_id AND r.id=q.resource_id\n    JOIN snapshots s ON s.id=q.snapshot_id AND s.run_id=q.run_id\n    JOIN workers w ON w.snapshot_id=q.snapshot_id AND w.run_id=q.run_id AND w.id=q.worker_id\n    WHERE s.id={sid} AND s.run_id={rid} AND s.complete=1\n      AND q.blocking=1 AND r.capacity=1 AND r.exclusive=1\n      AND w.\"state\"='WAITING' AND r.owner IS NOT NULL AND r.owner<>q.worker_id\n)\nSELECT a.waiter AS a, b.waiter AS b, '' AS c, a.resource_id AS ra, b.resource_id AS rb, '' AS rc\nFROM edges a JOIN edges b ON a.holder=b.waiter AND b.holder=a.waiter\nWHERE a.waiter<b.waiter\nUNION ALL\nSELECT a.waiter, b.waiter, c.waiter, a.resource_id, b.resource_id, c.resource_id\nFROM edges a JOIN edges b ON a.holder=b.waiter\nJOIN edges c ON b.holder=c.waiter AND c.holder=a.waiter\nWHERE a.waiter<b.waiter AND a.waiter<c.waiter AND b.waiter<>c.waiter\n",
+      "snapshot_id": "73fb83c4-0019-4a99-95cd-6c695e8fd51a",
+      "rows": [
+        {
+          "a": "A",
+          "b": "B",
+          "c": "C",
+          "ra": "r1",
+          "rb": "r2",
+          "rc": "r0"
+        }
+      ],
+      "duration_ms": 101.837
+    }
+  ],
+  "operations": [],
+  "telemetry": {
+    "engine": "exasol",
+    "available": true,
+    "error": null,
+    "last_success": 1789312054.5895832
+  }
+}

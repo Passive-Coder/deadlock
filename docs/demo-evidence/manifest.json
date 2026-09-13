@@ -1,0 +1,21 @@
+{
+  "report": "docs/evaluation.json",
+  "format": "recorded backend visualization; no browser footage",
+  "runs": [
+    {
+      "run_id": "16e7454e-e183-4a34-b22b-01890bc662e5",
+      "scenario": "canonical",
+      "start_offset": 0.0,
+      "duration": 46.27757906913757,
+      "status": "COMPLETED"
+    },
+    {
+      "run_id": "5b0bd48e-4895-4ab0-b523-923aa3372df6",
+      "scenario": "stale_plan",
+      "start_offset": 33.97419333457947,
+      "duration": 35.9461669921875,
+      "status": "UNRESOLVED"
+    }
+  ],
+  "duration_seconds": 104.22374606132507
+}

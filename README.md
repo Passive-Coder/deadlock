@@ -73,6 +73,12 @@ PYTHONPATH=backend uv run python scripts/evaluate.py --live --trials 5
 
 See [evaluation results](docs/EVALUATION.md), [product requirements](docs/PRD.md), [research and architecture](docs/ARCHITECTURE.md), and [demo run guide](docs/DEMO.md). Measured results include failures and missed latency targets. A green local suite does not imply compatibility with every CLI version, operating system, or database release.
 
+## Submission artifacts
+
+- [Pitch deck](docs/DEADLOCK-pitch.pptx): six editable slides.
+- [Recorded evidence walkthrough](docs/DEADLOCK-demo.mp4): 104.3 seconds, reconstructed from measured backend states and explicitly labeled.
+- [Source evidence and sample outputs](docs/demo-evidence/manifest.json).
+
 ## Repository map
 
 - `backend/deadlock/`: process adapters, SQL persistence, runner, mediator, HTTP API

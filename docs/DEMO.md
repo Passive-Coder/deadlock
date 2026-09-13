@@ -1,4 +1,8 @@
-# Three-minute demonstration guide
+# Demonstration and recording guide
+
+The repository includes a [104.3-second recorded-evidence video](DEADLOCK-demo.mp4) and [six-slide pitch deck](DEADLOCK-pitch.pptx). The video reconstructs actual backend states at recorded timing; it is labeled as recorded and is not a screen recording of the browser UI. Its [source manifest](demo-evidence/manifest.json) identifies the full canonical run and the stale-case excerpt.
+
+To recreate it after an evaluation, install FFmpeg and run `uv run --with pillow python scripts/render_demo.py`. The following runbook is for a separate browser recording.
 
 Start the backend, verify **Connections → Exasol available**, and authenticate Codex before recording. Close private agent inspectors before publishing any capture. The coding-agent dashboard and the recovery lab have different data sources; say so explicitly.
 
