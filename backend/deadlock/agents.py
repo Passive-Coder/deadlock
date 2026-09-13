@@ -225,6 +225,7 @@ class AgentManager:
         self.host = {}
         self.available = {name: shutil.which(name) is not None for name in ("codex", "claude")}
         self.paused = {}
+        self.stopping = set()
         self.state_path = settings.data_dir / "agents.json"
         self._load_records()
 
@@ -326,6 +327,8 @@ class AgentManager:
                     )
             except (psutil.Error, Rejection):
                 if record["source"] == "adopted process":
+                    if record["id"] in self.stopping:
+                        continue
                     record["state"] = "STOPPED" if record["state"] == "STOPPING" else "EXITED"
                     record["controls"] = []
                     record["cpu"], record["memory"] = 0, 0
@@ -507,9 +510,21 @@ class AgentManager:
             code = await proc.wait()
             record["exit_code"] = code
             record["state"] = (
-                "STOPPED" if record["state"] == "STOPPING" else ("COMPLETED" if code == 0 else "FAILED")
+                "STOPPING"
+                if agent_id in self.stopping
+                else (
+                    "STOPPED"
+                    if record["state"] in {"STOPPING", "STOPPED"}
+                    else (
+                        "STOP_FAILED"
+                        if record["state"] == "STOP_FAILED"
+                        else ("COMPLETED" if code == 0 else "FAILED")
+                    )
+                )
             )
-            record["controls"] = ["continue"] if record.get("session_id") else []
+            record["controls"] = (
+                ["continue"] if record.get("session_id") and agent_id not in self.stopping else []
+            )
             record["cpu"], record["memory"] = 0, 0
             self.event("agent.exited", f"{record['name']} exited with code {code}", agent_id)
             self.save()
@@ -590,16 +605,19 @@ class AgentManager:
             if action == "resume":
                 record["state"], record["controls"] = "RUNNING", ["pause", "stop"]
             else:
+                members = [proc, *proc.children(recursive=True)]
                 record["state"], record["controls"] = "STOPPING", []
+                self.stopping.add(agent_id)
                 record["note"] = (
                     "Stopping the visible process tree; remaining processes are killed after 3 seconds"
                 )
-                members = [proc, *proc.children(recursive=True)]
                 for member in reversed(members):
                     try:
                         member.send_signal(signal.SIGTERM)
                     except psutil.NoSuchProcess:
                         pass
+                    except psutil.AccessDenied:
+                        record["note"] = "A process denied termination; verifying remaining processes"
                 task = asyncio.create_task(self.finish_stop(agent_id, members))
                 self.tasks.add(task)
                 task.add_done_callback(self.tasks.discard)
@@ -608,17 +626,22 @@ class AgentManager:
         return deepcopy(record)
 
     async def finish_stop(self, agent_id, members):
-        deadline = time.monotonic() + 3
-        remaining = members
-        while remaining and time.monotonic() < deadline:
+        def live_members(items):
             alive = []
-            for proc in remaining:
+            for proc in items:
                 try:
                     if proc.is_running() and proc.status() != psutil.STATUS_ZOMBIE:
                         alive.append(proc)
                 except psutil.NoSuchProcess:
                     pass
-            remaining = alive
+                except psutil.AccessDenied:
+                    alive.append(proc)
+            return alive
+
+        deadline = time.monotonic() + 3
+        remaining = members
+        while remaining and time.monotonic() < deadline:
+            remaining = live_members(remaining)
             if remaining:
                 await asyncio.sleep(0.05)
         for proc in remaining:
@@ -632,9 +655,26 @@ class AgentManager:
         if remaining:
             self.event(
                 "agent.stop_escalated",
-                "Killed remaining processes after the termination grace period",
+                "Requested force termination after the grace period",
                 agent_id,
             )
+        deadline = time.monotonic() + 1
+        while remaining and time.monotonic() < deadline:
+            remaining = live_members(remaining)
+            if remaining:
+                await asyncio.sleep(0.02)
+        self.stopping.discard(agent_id)
+        record = self.records[agent_id]
+        record["state"] = "STOP_FAILED" if remaining else "STOPPED"
+        record["note"] = (
+            "Some processes remain; check their original terminal"
+            if remaining
+            else "Visible process tree stopped"
+        )
+        record["controls"] = ["continue"] if record.get("session_id") and not remaining else []
+        if not remaining:
+            record["cpu"], record["memory"] = 0, 0
+        self.save()
 
     def detail(self, agent_id):
         record = next((r for r in self.list() if r["id"] == agent_id), None)

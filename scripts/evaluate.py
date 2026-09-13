@@ -8,6 +8,7 @@ import platform
 import subprocess
 import time
 
+from deadlock import artifacts
 from deadlock.analytics import Analytics
 from deadlock.config import Settings
 from deadlock.mediator import Mediator
@@ -20,11 +21,51 @@ async def trial(settings, scenario, strategy, seed):
     runner.start(scenario, seed, strategy)
     mediator = Mediator(runner)
     task = None
+    timeline = []
     started = time.time()
     try:
         while time.time() - started < 85:
             await asyncio.to_thread(runner.tick)
             incident = runner.run["incident"]
+            state = runner.state()
+            timeline.append(
+                {
+                    "time": time.time(),
+                    "workers": [
+                        {
+                            k: w[k]
+                            for k in (
+                                "id",
+                                "name",
+                                "state",
+                                "progress",
+                                "total",
+                                "checkpoint_work",
+                                "waiting",
+                            )
+                        }
+                        for w in state["workers"]
+                    ],
+                    "resources": state["resources"],
+                    "incident": {
+                        k: state["incident"][k]
+                        for k in (
+                            "status",
+                            "key",
+                            "detected",
+                            "attempts",
+                            "tool_calls",
+                            "model",
+                            "reason",
+                            "plan",
+                        )
+                    }
+                    if state["incident"]
+                    else None,
+                    "artifacts": state["artifacts"],
+                    "event": state["events"][-1] if state["events"] else None,
+                }
+            )
             if incident and task is None and strategy != "none":
                 task = asyncio.create_task(mediator.investigate())
             if runner.run["status"] != "RUNNING" or (incident and incident["status"] == "UNRESOLVED"):
@@ -55,7 +96,15 @@ async def trial(settings, scenario, strategy, seed):
             "discarded_work": runner.run["discarded_work"],
             "preserved_work": runner.run["preserved_work"],
             "artifact_count": len(runner.run["artifacts"]),
-            "validated": bool(incident and incident["verification"] and incident["verification"]["valid"]),
+            "validated": bool(
+                runner.run["status"] == "COMPLETED"
+                and runner.run["artifacts"]
+                and all(
+                    artifacts.validate(runner.directory / a["filename"], a["kind"], runner.rows)["valid"]
+                    for a in runner.run["artifacts"]
+                )
+                and (not incident or incident["verification"] and incident["verification"]["valid"])
+            ),
             "model": incident["model"] if incident else None,
             "model_latency_ms": incident["model_latency_ms"] if incident else 0,
             "model_calls": incident.get("model_calls", 0) if incident else 0,
@@ -67,8 +116,14 @@ async def trial(settings, scenario, strategy, seed):
             "sql_query_ms": [q["duration_ms"] for q in analytics.queries],
             "evidence_gap": runner.run["evidence_gap"],
             "config": runner.run["config"],
+            "duplicate_artifacts": len(runner.run["artifacts"])
+            - len({a["filename"] for a in runner.run["artifacts"]}),
+            "interventions": sum(
+                e["type"] in {"recovery.applied", "baseline.applied"} for e in runner.run["events"]
+            ),
         }
         (runner.directory / "evaluation-evidence.json").write_text(json.dumps(runner.export(), indent=2))
+        (runner.directory / "timeline.json").write_text(json.dumps(timeline))
         runner.stop()
         return result
     finally:

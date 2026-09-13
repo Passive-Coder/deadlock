@@ -1189,6 +1189,7 @@ function Lab({
         engine: string;
         sql: string;
         duration_ms: number;
+        snapshot_id: string;
         rows: unknown[];
       }[];
     } | null>(null),
@@ -1226,9 +1227,14 @@ function Lab({
           </span>
         </div>
         <span className="scope-label">
-          {run?.strategy === "live"
-            ? "Live mediator selected"
-            : "Deterministic policy"}
+          {
+            {
+              live: "Live LLM mediator",
+              deterministic: "Deterministic policy",
+              none: "Observe only",
+              restart_all: "Restart-all baseline",
+            }[run?.strategy || strategy]
+          }
         </span>
       </div>
       <div className="lab-controls">
@@ -1455,11 +1461,15 @@ function Lab({
                       ? "Work is moving again."
                       : incident.status === "UNRESOLVED"
                         ? "Recovery needs attention."
-                        : "A circular wait is blocking progress."}
+                        : ["EXECUTING", "VERIFYING"].includes(incident.status)
+                          ? "Verifying completed work."
+                          : "A circular wait is blocking progress."}
                   </h3>
                   <p>
                     {incident.reason ||
-                      `${incident.key} → ${incident.members[0]}. Each worker is holding a resource another needs.`}
+                      (["EXECUTING", "VERIFYING"].includes(incident.status)
+                        ? "Waiting for affected workers to finish, output checks to pass, and leases to clear."
+                        : `${incident.key} → ${incident.members[0]}. Each worker is holding a resource another needs.`)}
                   </p>
                   <div className="incident-stats">
                     <span>
@@ -1660,6 +1670,9 @@ function Lab({
                           {q.duration_ms.toFixed(2)} ms · {q.rows.length} rows
                         </span>
                       </summary>
+                      <p className="muted small-copy">
+                        Snapshot {q.snapshot_id}
+                      </p>
                       <pre>{q.sql}</pre>
                       <pre>{JSON.stringify(q.rows, null, 2)}</pre>
                     </details>
