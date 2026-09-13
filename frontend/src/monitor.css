@@ -13,12 +13,12 @@
 .hardware-strip > div {
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 11px;
 }
 .hardware-strip > div > span {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 11px;
   color: var(--muted);
   font-size: 12px;
 }
@@ -30,7 +30,7 @@
 }
 .hardware-strip small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.55;
 }
 .hardware-strip .pressure-word {
@@ -42,13 +42,13 @@
   color: var(--amber);
 }
 .pressure-critical strong {
-  color: #e99787;
+  color: var(--danger);
 }
 .live-section-heading,
 .live-section-heading > div {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
 }
 .live-section-heading {
   justify-content: space-between;
@@ -75,9 +75,7 @@
   font-size: 12px;
 }
 .chart-heading > span {
-  font:
-    10px "IBM Plex Mono",
-    monospace;
+  font: 11px var(--font-mono);
   color: var(--muted);
 }
 .chart-legend {
@@ -91,7 +89,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 .chart-legend i {
@@ -100,8 +98,8 @@
   border-radius: 50%;
 }
 .chart-legend strong {
-  color: #d8ddd7;
-  font-size: 10px;
+  color: var(--text);
+  font-size: 11px;
   font-weight: 500;
   margin-left: 3px;
   font-variant-numeric: tabular-nums;
@@ -115,23 +113,21 @@
   overflow: visible;
 }
 .plot svg text {
-  fill: #7d887e;
-  font:
-    9px "IBM Plex Mono",
-    monospace;
+  fill: var(--muted);
+  font: 11px var(--font-mono);
 }
 .chart-grid {
-  stroke: #252e27;
-  stroke-width: 0.7px;
+  stroke: var(--line);
+  stroke-width: 0.11px;
 }
 .chart-cursor {
-  stroke: #bac8b5;
-  stroke-width: 0.7px;
+  stroke: var(--line);
+  stroke-width: 0.11px;
   stroke-dasharray: 2 3;
 }
 .threshold {
-  stroke: #78633c;
-  stroke-width: 0.8px;
+  stroke: var(--line);
+  stroke-width: 0.11px;
   stroke-dasharray: 4 5;
 }
 .plot-empty {
@@ -147,7 +143,7 @@
   width: calc(100% - 45px);
   margin: 6px 0 0 45px;
   height: 3px;
-  accent-color: var(--lime);
+  accent-color: var(--accent);
   opacity: 0.2;
   transition: opacity 0.15s;
 }
@@ -157,7 +153,7 @@
 }
 .measurement-note {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.65;
   padding-top: 15px;
 }
@@ -169,7 +165,7 @@
 }
 .governor-panel .section-header h2 {
   display: flex;
-  gap: 8px;
+  gap: 11px;
   align-items: center;
   font-size: 14px;
 }
@@ -177,8 +173,8 @@
   padding: 3px;
   width: 32px;
   height: 18px;
-  border-radius: 10px;
-  background: #363e38;
+  border-radius: 11px;
+  background: var(--soft);
   flex-shrink: 0;
 }
 .control-switch span {
@@ -186,21 +182,21 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #acb4aa;
+  background: var(--soft);
   transition: transform 0.16s;
 }
 .control-switch.on {
-  background: #46532f;
+  background: var(--soft);
 }
 .control-switch.on span {
-  background: var(--lime);
+  background: var(--accent);
   transform: translateX(14px);
 }
 .governor-state {
-  margin: 20px 0 8px;
-  color: var(--lime);
+  margin: 20px 0 11px;
+  color: var(--accent);
   display: flex;
-  gap: 8px;
+  gap: 11px;
   align-items: center;
   font-size: 12px;
 }
@@ -222,9 +218,9 @@
 .policy-facts {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 12px 10px;
+  gap: 12px 11px;
   margin: 22px 0 18px;
-  font-size: 10px;
+  font-size: 11px;
 }
 .policy-facts dt {
   color: var(--muted);
@@ -243,12 +239,12 @@
   gap: 6px;
   align-items: flex-start;
   margin-top: 13px;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.6;
 }
 .auto-paused {
   display: flex;
-  gap: 9px;
+  gap: 11px;
   align-items: center;
   padding: 14px 0;
   color: var(--amber);
@@ -277,7 +273,7 @@
 }
 .core-heading span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .core-map {
   display: grid;
@@ -287,7 +283,7 @@
 }
 .core-map > div {
   height: 46px;
-  background: #1a201b;
+  background: var(--soft);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -297,7 +293,7 @@
 }
 .core-map span,
 .core-map strong {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 400;
   z-index: 1;
   position: relative;
@@ -311,7 +307,7 @@
   bottom: 0;
   left: 0;
   width: 100%;
-  background: #c6f31118;
+  background: var(--overlay);
   transition: height 0.3s;
 }
 .host-throughput {
@@ -322,14 +318,12 @@
 }
 .host-throughput > span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .host-throughput strong {
-  color: #b5bfb3;
+  color: var(--text);
   display: block;
-  font:
-    10px "IBM Plex Mono",
-    monospace;
+  font: 11px var(--font-mono);
   margin-top: 5px;
 }
 .agent-trend {
@@ -337,23 +331,23 @@
   width: 70px;
   height: 20px;
   margin-top: 3px;
-  color: #a2bc83;
+  color: var(--text);
 }
 .auto-agent-toggle {
-  border: 1px solid #3b4339;
+  border: 1px solid var(--line);
   border-radius: 4px;
   padding: 4px 5px;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--muted);
   transition: color 0.15s;
 }
 .auto-agent-toggle.enabled {
-  color: var(--lime);
-  border-color: #51623b;
+  color: var(--accent);
+  border-color: var(--line);
 }
 .auto-tag {
   color: var(--amber);
-  font-size: 9px;
+  font-size: 11px;
   display: block;
   margin-top: 3px;
 }
@@ -362,7 +356,7 @@
 }
 .sidebar nav small {
   margin-left: auto;
-  font-size: 8px;
+  font-size: 11px;
   color: var(--muted);
 }
 .agent-performance {
@@ -380,9 +374,7 @@
 }
 .process-row > span {
   margin-left: auto;
-  font:
-    9px "IBM Plex Mono",
-    monospace;
+  font: 11px var(--font-mono);
 }
 .other-process-heading {
   margin-top: 35px;
@@ -416,7 +408,7 @@
 .other-process-list small {
   display: block;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 11px;
   margin-top: 5px;
 }
 .attribution-table {
