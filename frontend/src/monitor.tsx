@@ -295,7 +295,7 @@ export function HardwareDashboard({
         <div>
           <span>
             <MemoryStick size={14} />
-            Memory headroom
+            Available memory
           </span>
           <strong>{bytes(h.memory_available)}</strong>
           <small>
@@ -333,12 +333,13 @@ export function HardwareDashboard({
         <div>
           <span className="live-dot" />
           <h2>Device activity</h2>
-          <span className="subtle">{h.platform} · sampled every ~1s</span>
+          <span className="subtle">Live · every second</span>
         </div>
         <div className="filter-tabs">
           {[120, 300, 600].map((s) => (
             <button
               key={s}
+              aria-pressed={s === seconds}
               className={s === seconds ? "active" : ""}
               onClick={() => setSeconds(s)}
             >
@@ -365,10 +366,14 @@ export function HardwareDashboard({
           threshold={data.governor.policy.cpu_high}
           seconds={seconds}
           lines={[
-            { name: "Host", color: "#c6f36b", value: (f) => f.host.cpu },
+            {
+              name: "Host",
+              color: "var(--chart-host)",
+              value: (f) => f.host.cpu,
+            },
             {
               name: "Coding agents",
-              color: "#a2b4c2",
+              color: "var(--chart-agent)",
               value: (f) => f.host.agent_cpu,
               dashed: true,
             },
@@ -383,12 +388,12 @@ export function HardwareDashboard({
           lines={[
             {
               name: "Host in use",
-              color: "#c6f36b",
+              color: "var(--chart-host)",
               value: (f) => f.host.memory_used,
             },
             {
               name: "Agent RSS",
-              color: "#a2b4c2",
+              color: "var(--chart-agent)",
               value: (f) => f.host.agent_memory,
               dashed: true,
             },
@@ -404,7 +409,7 @@ export function HardwareDashboard({
               lines={[
                 {
                   name: h.gpu?.name || "Host GPU",
-                  color: "#c6f36b",
+                  color: "var(--chart-host)",
                   value: (f) =>
                     f.host.gpu && f.time - f.host.gpu.updated < 5
                       ? f.host.gpu.utilization
@@ -420,12 +425,12 @@ export function HardwareDashboard({
               lines={[
                 {
                   name: "Read",
-                  color: "#c6f36b",
+                  color: "var(--chart-host)",
                   value: (f) => f.host.io.disk_read,
                 },
                 {
                   name: "Write",
-                  color: "#a2b4c2",
+                  color: "var(--chart-agent)",
                   value: (f) => f.host.io.disk_write,
                   dashed: true,
                 },
@@ -439,12 +444,12 @@ export function HardwareDashboard({
               lines={[
                 {
                   name: "Received",
-                  color: "#c6f36b",
+                  color: "var(--chart-host)",
                   value: (f) => f.host.io.net_recv,
                 },
                 {
                   name: "Sent",
-                  color: "#a2b4c2",
+                  color: "var(--chart-agent)",
                   value: (f) => f.host.io.net_sent,
                   dashed: true,
                 },
@@ -458,12 +463,12 @@ export function HardwareDashboard({
               lines={[
                 {
                   name: "In",
-                  color: "#c6f36b",
+                  color: "var(--chart-host)",
                   value: (f) => f.host.io.swap_in,
                 },
                 {
                   name: "Out",
-                  color: "#a2b4c2",
+                  color: "var(--chart-agent)",
                   value: (f) => f.host.io.swap_out,
                   dashed: true,
                 },
@@ -472,11 +477,33 @@ export function HardwareDashboard({
           </>
         )}
       </div>
-      <p className="measurement-note">
-        CPU uses total host capacity. RAM headroom is OS available memory; agent
-        RSS includes shared pages and excludes compressed memory. Graphs retain
-        up to 10 minutes since server startup. Gaps mean missing samples.
-      </p>
+      {full && (
+        <section className="device-core-panel" aria-label="CPU cores">
+          {" "}
+          <div className="core-heading">
+            <h3>CPU cores</h3>
+            <span>{data.host.logical_cpus} logical</span>
+          </div>
+          <div className="core-map">
+            {data.host.cores?.map((value, i) => (
+              <div key={i} title={`Core ${i + 1}: ${percent(value)}`}>
+                <span>{i + 1}</span>
+                <strong>{percent(value)}</strong>
+                <i style={{ height: `${value || 0}%` }} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+      <details className="measurement-note">
+        <summary>About these measurements</summary>
+        <p>
+          CPU uses total host capacity. RAM headroom is OS available memory;
+          agent RSS includes shared pages and excludes compressed memory. Graphs
+          retain up to 10 minutes since server startup. Gaps mean missing
+          samples.
+        </p>
+      </details>
     </section>
   );
 }
@@ -533,7 +560,9 @@ export function GovernorPanel({
                 : "Monitoring pressure"
             : "Monitoring only"}
       </div>
-      <p>{g.reason}</p>
+      <p>
+        {g.enabled ? g.reason : "Agents are observed without automatic pauses."}
+      </p>
       {g.paused && (
         <div className="auto-paused">
           <Pause size={15} />
@@ -578,45 +607,19 @@ export function GovernorPanel({
           {eligible} standalone agent{eligible === 1 ? "" : "s"}
         </dd>
       </dl>
-      <p className="policy-note">
-        Critical memory pressure or less than 8% headroom can pause an agent
-        growing ≥ 1 MiB/s to slow allocation. Suspension retains memory and
-        locks; it cannot resolve a lock deadlock. Every automatic pause has an
-        independent resume watchdog. Standalone processes are adopted
-        automatically when needed.
-      </p>
+      <details className="policy-note">
+        <summary>How automatic control works</summary>
+        <p>
+          Critical memory pressure or less than 8% headroom can pause an agent
+          growing ≥ 1 MiB/s to slow allocation. Suspension retains memory and
+          locks; it cannot resolve a lock deadlock. Every automatic pause has an
+          independent resume watchdog. Standalone processes are adopted
+          automatically when needed.
+        </p>
+      </details>
       <div className="protected-note">
         <LockKeyhole size={13} />
         Shared runtimes and manual pauses are protected.
-      </div>
-      <div className="core-heading">
-        <h3>CPU cores</h3>
-        <span>{data.host.logical_cpus} logical</span>
-      </div>
-      <div className="core-map">
-        {data.host.cores?.map((value, i) => (
-          <div key={i} title={`Core ${i + 1}: ${percent(value)}`}>
-            <span>{i + 1}</span>
-            <strong>{percent(value)}</strong>
-            <i style={{ height: `${value || 0}%` }} />
-          </div>
-        ))}
-      </div>
-      <div className="host-throughput">
-        <span>
-          Disk read / write
-          <strong>
-            {throughput(data.host.io?.disk_read)} /{" "}
-            {throughput(data.host.io?.disk_write)}
-          </strong>
-        </span>
-        <span>
-          Network received / sent
-          <strong>
-            {throughput(data.host.io?.net_recv)} /{" "}
-            {throughput(data.host.io?.net_sent)}
-          </strong>
-        </span>
       </div>
     </section>
   );
@@ -674,7 +677,7 @@ export function AgentPerformance({
         lines={[
           {
             name: "Process tree",
-            color: "#c6f36b",
+            color: "var(--chart-host)",
             value: (f) => f.agents[agent.id]?.cpu_capacity,
           },
         ]}
@@ -686,7 +689,7 @@ export function AgentPerformance({
         lines={[
           {
             name: "RSS",
-            color: "#c6f36b",
+            color: "var(--chart-host)",
             value: (f) => f.agents[agent.id]?.memory,
           },
         ]}

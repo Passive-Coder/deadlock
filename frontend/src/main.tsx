@@ -43,19 +43,22 @@ import {
   GovernorPanel,
   AgentResources,
   AgentPerformance,
-  AgentTrend,
   useMetrics,
   percent,
 } from "./monitor";
 import type { MetricHistory } from "./types";
 import "./styles.css";
 import "./monitor.css";
+import "./appearance.css";
+import { OverviewSummary, ControlSummary } from "./overview";
+import "./overview.css";
 
 type View =
   "overview" | "resources" | "lab" | "activity" | "history" | "connections";
 type ModalState =
   | { kind: "launch"; agent?: Agent }
   | { kind: "confirm"; agent: Agent; action: string }
+  | { kind: "governor" }
   | null;
 const activeStates = ["RUNNING", "PAUSED", "STARTING", "STOPPING"];
 const cx = (...classes: (string | boolean | undefined)[]) =>
@@ -64,13 +67,12 @@ const cx = (...classes: (string | boolean | undefined)[]) =>
 function Brand({ small = false }: { small?: boolean }) {
   return (
     <div className={cx("brand", small && "small")}>
-      <span className="brand-mark">
-        <span />
-        <span />
+      <span className="app-icon" aria-hidden="true">
+        <Activity size={21} strokeWidth={2} />
       </span>
       {!small && (
         <>
-          DEADLOCK<span className="brand-dot">.</span>
+          <span className="brand-name">Deadlock</span>
         </>
       )}
     </div>
@@ -115,25 +117,6 @@ function Empty({
     </div>
   );
 }
-function Spark({ values }: { values: number[] }) {
-  const max = Math.max(10, ...values);
-  return (
-    <svg className="spark" viewBox="0 0 130 32" aria-hidden="true">
-      <path
-        d={values
-          .map(
-            (v, i) =>
-              `${i ? "L" : "M"} ${(i * 130) / Math.max(1, values.length - 1)} ${30 - (v / max) * 27}`,
-          )
-          .join(" ")}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-      />
-    </svg>
-  );
-}
-
 function App() {
   const { history: metricsHistory, error: metricsError } = useMetrics();
   const [data, setData] = useState<State | null>(null),
@@ -144,15 +127,12 @@ function App() {
     [toast, setToast] = useState(""),
     [busy, setBusy] = useState("");
   const [filter, setFilter] = useState("active"),
-    [search, setSearch] = useState(""),
-    [samples, setSamples] = useState<number[]>([]);
+    [search, setSearch] = useState("");
   const refresh = useCallback(async () => {
     try {
       const state = await api<State>("/state");
       setData(state);
       setConnectionError("");
-      if (state.host.cpu != null)
-        setSamples((a) => [...a.slice(-29), state.host.cpu!]);
     } catch (e) {
       setConnectionError((e as Error).message);
     }
@@ -219,13 +199,10 @@ function App() {
   const agents = data?.agents || [],
     active = agents.filter((a) => activeStates.includes(a.state));
   const titles: Record<View, [string, string]> = {
-    overview: [
-      "Live resource monitor",
-      "Real coding agents. Real device activity. Automatic pressure control.",
-    ],
+    overview: ["Live monitor", "Your machine and your agents, at a glance."],
     resources: [
       "Device resources",
-      "CPU, memory, GPU, disk, and network — measured on this machine.",
+      "A closer look at how your machine is being used.",
     ],
     lab: [
       "Recovery lab",
@@ -262,22 +239,13 @@ function App() {
     <div className="app-shell">
       <aside className="sidebar">
         <Brand />
-        <div className="workspace">
-          <span className="workspace-icon">
-            <Terminal size={17} />
-          </span>
-          <div>
-            <strong>Local workspace</strong>
-            <span>Personal environment</span>
-          </div>
-          <LockKeyhole size={12} />
-        </div>
-        <div className="nav-caption">WORKSPACE</div>
-        <nav>
+        <nav aria-label="Workspace">
           {navs.map(({ id, name, icon: Icon }) => (
             <button
               key={id}
               aria-label={name}
+              aria-current={view === id ? "page" : undefined}
+              title={name}
               className={cx(view === id && "selected")}
               onClick={() => setView(id)}
             >
@@ -289,62 +257,64 @@ function App() {
             </button>
           ))}
         </nav>
-        <div className="nav-caption secondary">SYSTEM</div>
-        <nav>
-          <button
-            className={cx(view === "lab" && "selected")}
-            onClick={() => setView("lab")}
-          >
-            <GitBranch size={17} />
-            Recovery lab <small>Optional</small>
-          </button>
-          <button
-            className={cx(view === "history" && "selected")}
-            onClick={() => setView("history")}
-          >
-            <History size={17} />
-            Run history
-          </button>
-          <button
-            className={cx(view === "connections" && "selected")}
-            onClick={() => setView("connections")}
-          >
+        <details className="secondary-nav">
+          <summary aria-label="More tools" title="More tools">
             <Settings2 size={17} />
-            Connections
-          </button>
-        </nav>
+            <span>More tools</span>
+            <ChevronRight size={14} />
+          </summary>
+          <nav aria-label="Tools">
+            <button
+              aria-label="Recovery lab"
+              aria-current={view === "lab" ? "page" : undefined}
+              title="Recovery lab"
+              className={cx(view === "lab" && "selected")}
+              onClick={() => setView("lab")}
+            >
+              <GitBranch size={17} />
+              <span>Recovery lab</span>
+            </button>
+            <button
+              aria-label="Run history"
+              aria-current={view === "history" ? "page" : undefined}
+              title="Run history"
+              className={cx(view === "history" && "selected")}
+              onClick={() => setView("history")}
+            >
+              <History size={17} />
+              <span>Run history</span>
+            </button>
+            <button
+              aria-label="Connections"
+              aria-current={view === "connections" ? "page" : undefined}
+              title="Connections"
+              className={cx(view === "connections" && "selected")}
+              onClick={() => setView("connections")}
+            >
+              <Settings2 size={17} />
+              <span>Connections</span>
+            </button>
+          </nav>
+        </details>
         <div className="sidebar-bottom">
-          <div className="host-mini">
-            <div>
-              <Monitor size={15} />
-              <span>{data?.host.platform || "Local machine"}</span>
-              <span className="live-dot" />
-            </div>
-            <p>
-              Host CPU <strong>{percent(data?.host.cpu)}</strong>
-            </p>
-            <Spark values={samples} />
-          </div>
           <div className="local-note">
             <ShieldCheck size={14} />
-            <span>Runs on your machine</span>
+            <span>On your machine</span>
           </div>
-          <span className="version">
-            DEADLOCK <span>v0.1.0</span>
-          </span>
         </div>
       </aside>
       <div className="main-shell">
         <header className="topbar">
           <div className="breadcrumbs">
-            <span>Workspace</span>
-            <ChevronRight size={13} />
-            <strong>{titles[view][0]}</strong>
+            <Monitor size={15} />
+            <span>
+              {data?.host.platform === "Darwin" ? "This Mac" : "This computer"}
+            </span>
           </div>
           <div className="topbar-right">
             <span className={cx("connection", !!connectionError && "offline")}>
               <span />
-              {connectionError ? "Disconnected" : "Live connection"}
+              {connectionError ? "Disconnected" : "Connected"}
             </span>
             <span className="vertical-rule" />
             <button
@@ -354,23 +324,23 @@ function App() {
             >
               <RefreshCw size={15} />
             </button>
-            <span className="avatar">L</span>
           </div>
         </header>
-        <main>
+        <main className={view === "overview" ? "overview-page" : undefined}>
           <div className="page-heading">
             <div>
-              <div className="eyebrow">LOCAL CONTROL CENTER</div>
               <h1>{titles[view][0]}</h1>
               <p>{titles[view][1]}</p>
             </div>
-            <button
-              className="button primary"
-              onClick={() => setModal({ kind: "launch" })}
-            >
-              <Plus size={16} />
-              New agent
-            </button>
+            {view === "overview" && (
+              <button
+                className="button primary"
+                onClick={() => setModal({ kind: "launch" })}
+              >
+                <Plus size={16} />
+                New agent…
+              </button>
+            )}
           </div>
           {connectionError && (
             <div className="notice error">
@@ -389,35 +359,51 @@ function App() {
             </div>
           ) : (
             <>
-              {(view === "overview" || view === "resources") && (
+              {view === "resources" && (
                 <HardwareDashboard
                   data={data}
                   history={metricsHistory}
                   historyError={metricsError}
-                  full={view === "resources"}
+                  full
                 />
               )}
               {view === "overview" && (
-                <div className="overview-grid">
+                <div className="overview-content">
+                  <OverviewSummary
+                    data={data}
+                    disconnected={!!connectionError}
+                    onResources={() => setView("resources")}
+                  />
+                  <ControlSummary
+                    data={data}
+                    onManage={() => setModal({ kind: "governor" })}
+                    onResume={() => {
+                      if (data.governor.paused)
+                        void execute(data.governor.paused.agent_id, () =>
+                          api(
+                            `/agents/${encodeURIComponent(data.governor.paused!.agent_id)}/control`,
+                            { action: "resume" },
+                          ),
+                        );
+                    }}
+                    busy={busy}
+                  />
                   <section className="agent-section">
                     <div className="section-header">
                       <h2>
-                        Agents <span className="count">{agents.length}</span>
+                        Your agents{" "}
+                        <span className="count">{filtered.length}</span>
                       </h2>
-                      <span className="subtle">
-                        <span className="live-dot" /> Updated every second
-                      </span>
                     </div>
                     <div className="table-toolbar">
                       <div className="filter-tabs">
                         {[
                           ["active", "Active"],
                           ["all", "All agents"],
-                          ["paused", "Paused"],
-                          ["finished", "Saved & finished"],
                         ].map(([key, text]) => (
                           <button
                             key={key}
+                            aria-pressed={filter === key}
                             onClick={() => setFilter(key)}
                             className={cx(filter === key && "active")}
                           >
@@ -433,19 +419,18 @@ function App() {
                           value={search}
                           onChange={(e) => setSearch(e.target.value)}
                         />
-                        <span>⌕</span>
                       </label>
                     </div>
                     <div className="table-scroll">
                       <table className="agent-table">
                         <thead>
                           <tr>
-                            <th>AGENT / WORKSPACE</th>
-                            <th>STATUS</th>
+                            <th>Agent</th>
+                            <th>Status</th>
                             <th title="Percent of total host CPU capacity">
-                              CPU / TREND
+                              CPU
                             </th>
-                            <th>MEMORY</th>
+                            <th>Memory</th>
                             <th aria-label="Controls" />
                           </tr>
                         </thead>
@@ -477,61 +462,18 @@ function App() {
                                 {a.pause_owner === "automatic" && (
                                   <span className="auto-tag">Auto-paused</span>
                                 )}
-                                <span className="table-source">
-                                  {a.source === "shared session"
-                                    ? "Session"
-                                    : a.source === "observed process"
-                                      ? "Observed"
-                                      : a.source === "adopted process"
-                                        ? "Adopted"
-                                        : "Managed"}
-                                  {a.pid && ` · ${a.pid}`}
-                                  {a.metrics_partial && " · Partial sample"}
-                                </span>
+                                {a.protected && (
+                                  <span className="table-source">
+                                    Observe only
+                                  </span>
+                                )}
                               </td>
                               <td className="mono">
                                 {percent(a.cpu_capacity)}
-                                <AgentTrend
-                                  agent={a}
-                                  history={metricsHistory}
-                                />
                               </td>
                               <td className="mono">{bytes(a.memory)}</td>
                               <td>
                                 <div className="row-controls">
-                                  {!a.protected &&
-                                    activeStates.includes(a.state) &&
-                                    a.pid && (
-                                      <button
-                                        className={cx(
-                                          "auto-agent-toggle",
-                                          !data.governor.exempt.includes(
-                                            a.id,
-                                          ) && "enabled",
-                                        )}
-                                        role="switch"
-                                        aria-checked={
-                                          !data.governor.exempt.includes(a.id)
-                                        }
-                                        aria-label={`Automatic pressure control for ${a.name}`}
-                                        title="Allow automatic temporary pauses when this agent contributes to overload"
-                                        onClick={() =>
-                                          void execute(a.id, () =>
-                                            api(
-                                              `/agents/${encodeURIComponent(a.id)}/automation`,
-                                              {
-                                                enabled:
-                                                  data.governor.exempt.includes(
-                                                    a.id,
-                                                  ),
-                                              },
-                                            ),
-                                          )
-                                        }
-                                      >
-                                        Auto
-                                      </button>
-                                    )}
                                   {a.controls.includes("pause") && (
                                     <button
                                       className="icon-button"
@@ -552,51 +494,13 @@ function App() {
                                       <Play size={14} />
                                     </button>
                                   )}
-                                  {a.controls.includes("adopt") && (
-                                    <button
-                                      className="button mini"
-                                      onClick={() => void control(a, "adopt")}
-                                    >
-                                      Adopt
-                                    </button>
-                                  )}
-                                  {a.controls.includes("continue") && (
-                                    <button
-                                      className="icon-button"
-                                      aria-label={`Continue ${a.name}`}
-                                      onClick={() =>
-                                        void control(a, "continue")
-                                      }
-                                    >
-                                      <Play size={14} />
-                                    </button>
-                                  )}
-                                  {a.controls.includes("stop") && (
-                                    <button
-                                      className="icon-button"
-                                      aria-label={`Stop ${a.name}`}
-                                      onClick={() => void control(a, "stop")}
-                                    >
-                                      <Square size={13} />
-                                    </button>
-                                  )}
-                                  {a.controls.includes("interrupt") && (
-                                    <button
-                                      className="icon-button"
-                                      aria-label={`Interrupt ${a.name}`}
-                                      onClick={() =>
-                                        void control(a, "interrupt")
-                                      }
-                                    >
-                                      <Square size={13} />
-                                    </button>
-                                  )}
                                   <button
-                                    className="icon-button"
+                                    className="button mini quiet"
                                     aria-label={`Inspect ${a.name}`}
                                     onClick={() => void inspect(a)}
                                   >
-                                    <ChevronRight size={16} />
+                                    <span>Details</span>{" "}
+                                    <ChevronRight size={14} />
                                   </button>
                                 </div>
                               </td>
@@ -637,26 +541,7 @@ function App() {
                         <LockKeyhole size={12} /> Shared runtimes are protected
                       </span>
                     </div>
-                    <section className="recent-activity">
-                      <div className="section-header">
-                        <h2>Recent activity</h2>
-                        <button
-                          className="text-button"
-                          onClick={() => setView("activity")}
-                        >
-                          View all <ArrowRight size={13} />
-                        </button>
-                      </div>
-                      <EventList
-                        events={[...data.events]
-                          .sort((a, b) => b.time - a.time)
-                          .slice(0, 4)}
-                      />
-                    </section>
                   </section>
-                  <aside className="overview-aside">
-                    <GovernorPanel data={data} execute={execute} busy={busy} />
-                  </aside>
                 </div>
               )}
               {view === "resources" && (
@@ -690,30 +575,6 @@ function App() {
             </>
           )}
         </main>
-        <footer className="statusbar">
-          <span>
-            <span className={cx("live-dot", connectionError && "offline")} />
-            {connectionError ? "Last known state" : "Local control plane"}
-            <span className="statusbar-sep">/</span>
-            {data?.telemetry.engine === "exasol"
-              ? "Exasol analytics"
-              : "SQLite · local development"}
-          </span>
-          <span>
-            {data?.telemetry.available ? (
-              <>
-                <ShieldCheck size={12} />
-                Telemetry connected
-              </>
-            ) : (
-              <>
-                <AlertTriangle size={12} />
-                Telemetry unavailable
-              </>
-            )}
-            <span className="statusbar-sep">·</span>No cloud sync
-          </span>
-        </footer>
       </div>
       {selected && (
         <Inspector
@@ -722,11 +583,27 @@ function App() {
           close={() => setSelected(null)}
           control={control}
           reload={() => void inspect(selected)}
+          automationEnabled={!data?.governor.exempt.includes(selected.id)}
+          busy={busy === selected.id}
+          toggleAutomation={() =>
+            void execute(selected.id, () =>
+              api(`/agents/${encodeURIComponent(selected.id)}/automation`, {
+                enabled: !!data?.governor.exempt.includes(selected.id),
+              }),
+            )
+          }
         />
       )}
       {modal && (
-        <Modal close={() => setModal(null)}>
-          {modal.kind === "launch" ? (
+        <Modal
+          close={() => setModal(null)}
+          title={
+            modal.kind === "governor" ? "Automatic control settings" : undefined
+          }
+        >
+          {modal.kind === "governor" ? (
+            data && <GovernorPanel data={data} execute={execute} busy={busy} />
+          ) : modal.kind === "launch" ? (
             <LaunchForm
               data={data}
               agent={modal.agent}
@@ -846,7 +723,7 @@ function DependencyGraph({
             markerHeight="5"
             orient="auto-start-reverse"
           >
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="#9fb789" />
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--accent)" />
           </marker>
           <marker
             id="arrow-wait"
@@ -857,7 +734,7 @@ function DependencyGraph({
             markerHeight="5"
             orient="auto-start-reverse"
           >
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="#dfb267" />
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--amber)" />
           </marker>
         </defs>
         {resources.map(
@@ -1716,10 +1593,12 @@ function Modal({
   children,
   close,
   wide = false,
+  title,
 }: {
   children: React.ReactNode;
   close: () => void;
   wide?: boolean;
+  title?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -1731,6 +1610,7 @@ function Modal({
     <dialog
       ref={ref}
       className={cx("modal", wide && "wide-modal")}
+      aria-label={title}
       onCancel={close}
       onClick={(e) => {
         if (e.target === ref.current) close();
@@ -1983,7 +1863,13 @@ function Inspector({
   close,
   control,
   reload,
+  automationEnabled,
+  toggleAutomation,
+  busy,
 }: {
+  automationEnabled: boolean;
+  toggleAutomation: () => void;
+  busy: boolean;
   history: MetricHistory;
   agent: Agent;
   close: () => void;
@@ -2038,6 +1924,7 @@ function Inspector({
             <button
               className={cx("button", action === "resume" && "primary")}
               key={action}
+              disabled={busy}
               onClick={() => control(agent, action)}
             >
               {action === "pause" ? (
@@ -2051,6 +1938,26 @@ function Inspector({
             </button>
           ))}
         </div>
+        {!agent.protected &&
+          activeStates.includes(agent.state) &&
+          !!agent.pid && (
+            <div className="inspector-automation">
+              <div>
+                <strong>Automatic control</strong>
+                <p>Allow temporary pauses during overload.</p>
+              </div>
+              <button
+                role="switch"
+                aria-label={`Automatic pressure control for ${agent.name}`}
+                aria-checked={automationEnabled}
+                className={`control-switch ${automationEnabled ? "on" : ""}`}
+                onClick={toggleAutomation}
+                disabled={busy}
+              >
+                <span />
+              </button>
+            </div>
+          )}
         <dl className="agent-facts">
           <dt>Working directory</dt>
           <dd>{shortPath(agent.cwd)}</dd>
