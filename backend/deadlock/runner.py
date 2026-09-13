@@ -502,6 +502,8 @@ class Runner:
     def propose(self, candidate, evidence_ids, rationale):
         with self.lock:
             incident = self.run["incident"]
+            if time.time() - incident["detected"] >= self.settings.incident_budget:
+                raise Rejection("TIME_BUDGET", "Incident budget expired before proposal")
             registered = self.candidate_records.get(candidate.get("id"))
             if not registered or registered["candidate"] != candidate:
                 raise Rejection("INVALID_CANDIDATE", "Candidate is not in the current allowlist")
@@ -558,6 +560,8 @@ class Runner:
             incident = self.run["incident"]
             if self.run["strategy"] != "restart_all" or incident["status"] != "INVESTIGATING":
                 raise Rejection("INVALID_STATE", "Restart-all is available only in its evaluation baseline")
+            if time.time() - incident["detected"] >= self.settings.incident_budget:
+                raise Rejection("TIME_BUDGET", "Incident budget expired before restart-all")
             if (
                 not self.analytics.available
                 or not self.persisted
@@ -614,6 +618,8 @@ class Runner:
                 "INVESTIGATING",
             }:
                 raise Rejection("INVALID_STATE", "Incident cannot execute a recovery in its current state")
+            if time.time() - incident["detected"] >= self.settings.incident_budget:
+                raise Rejection("TIME_BUDGET", "Incident budget expired before execution")
             if (
                 not self.analytics.available
                 or not self.persisted

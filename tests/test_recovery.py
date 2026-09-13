@@ -357,3 +357,15 @@ async def test_query_failure_is_explicit_and_never_invokes_recovery(runner, monk
     assert not runner.analytics.available
     assert "sensitive" not in incident["reason"]
     assert not runner.operations
+
+
+def test_expired_manual_plan_is_rejected_without_waiting_for_next_tick(runner):
+    blocked(runner)
+    chosen = plan(runner)
+    runner.run["incident"]["detected"] -= runner.settings.incident_budget + 1
+    before = runner.scope(runner.run["incident"]["members"])
+    with pytest.raises(Rejection) as exc:
+        runner.execute(chosen["id"], uid())
+    assert exc.value.code == "TIME_BUDGET"
+    assert runner.scope(runner.run["incident"]["members"]) == before
+    assert not runner.operations

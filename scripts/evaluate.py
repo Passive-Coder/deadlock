@@ -24,7 +24,7 @@ async def trial(settings, scenario, strategy, seed):
     timeline = []
     started = time.time()
     try:
-        while time.time() - started < 85:
+        while time.time() - started < (300 if scenario == "healthy" else 85):
             await asyncio.to_thread(runner.tick)
             incident = runner.run["incident"]
             state = runner.state()

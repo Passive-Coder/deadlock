@@ -303,16 +303,13 @@ def create_app(settings=None):
     return app
 
 
-app = create_app()
-
-
 def main():
     import uvicorn
 
     host = os.getenv("DEADLOCK_HOST", "127.0.0.1")
     if host not in {"127.0.0.1", "localhost", "::1"}:
         raise SystemExit("DEADLOCK_HOST must be loopback")
-    uvicorn.run(app, host=host, port=int(os.getenv("DEADLOCK_PORT", "8765")))
+    uvicorn.run(create_app(), host=host, port=int(os.getenv("DEADLOCK_PORT", "8765")))
 
 
 if __name__ == "__main__":

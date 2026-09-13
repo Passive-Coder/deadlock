@@ -20,7 +20,7 @@ class Settings:
     roots: list[Path] = field(
         default_factory=lambda: [
             Path(p).expanduser().resolve()
-            for p in os.getenv("DEADLOCK_WORKSPACE_ROOTS", str(Path.cwd())).split(os.pathsep)
+            for p in (os.getenv("DEADLOCK_WORKSPACE_ROOTS") or str(Path.cwd())).split(os.pathsep)
             if p
         ]
     )
