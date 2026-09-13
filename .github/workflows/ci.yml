@@ -11,11 +11,15 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - run: test -x scripts/dev.sh
       - run: uv sync --locked --python 3.11
       - run: uv run ruff check backend tests scripts
       - run: uv run pytest -q
       - run: npm --prefix frontend ci
       - run: npm --prefix frontend run build
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm --prefix frontend run test:e2e
