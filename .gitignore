@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+.env
+.env.*
+!.env.example
+.deadlock/
+node_modules/
+frontend/dist/
+test-results/
+playwright-report/
+.DS_Store
+*.egg-info/
